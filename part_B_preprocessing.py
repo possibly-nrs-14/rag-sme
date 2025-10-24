@@ -12,6 +12,8 @@ from tqdm import tqdm
 import fitz 
 from datasketch import MinHash, MinHashLSH  
 
+from part_C_embeddings import save_document_graph
+
 # Regex for tokenization, needed by LSH function
 _WORD_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
@@ -309,6 +311,15 @@ def main():
         granularities=[2048, 512, 128], 
         overlap_tokens=64
     )
+
+#     save_document_graph(
+#     doc_id=doc_id,
+#     basename=fname,
+#     tokens=g,
+#     rows=rows,
+#     out_dir=artifacts_dir,
+#     model=sentence-transformers/all-mpnet-base-v2
+# )
 
 if __name__ == "__main__":
     main()
