@@ -77,7 +77,6 @@ def clean_pdf(path, threshold=10):
             left_blocks.sort(key=lambda t: (t[0], t[1]))
             right_blocks.sort(key=lambda t: (t[0], t[1]))
             ordered = left_blocks + right_blocks
-
             kept_lines = []
             for j, (_, _, txt) in enumerate(ordered):
                 plain = normalize_spaces(txt).lower()  # Lowercasing
@@ -175,15 +174,6 @@ def content_aware_chunk(text, max_tokens, overlap_tokens):
     return final_chunks
 
 def deduplicate(chunks, threshold=0.9, num_perm=128):
-    """
-    Deduplicates a list of text chunks using MinHash LSH.
-    Keeps the first-encountered chunk of any near-duplicate set.
-    
-    threshold: Jaccard similarity threshold (0.0 to 1.0).
-               0.9 means 90% similar.
-    num_perm:  Number of permutations, affects signature accuracy.
-               128 is a good default.
-    """
     logging.info(f"Deduplicating {len(chunks)} chunks with LSH (threshold={threshold})...")
     
     if not chunks:
@@ -233,8 +223,6 @@ def deduplicate(chunks, threshold=0.9, num_perm=128):
             
     logging.info(f"Reduced to {len(out)} chunks after LSH deduplication.")
     return out
-# --- END REPLACED SECTION ---
-
 
 def write_jsonl(path, rows):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -289,7 +277,6 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
     return stats
 
 def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
-    """BONUS: The automated batch ingestion pipeline."""
     os.makedirs(artifacts_dir, exist_ok=True)
     log_path = setup_logging(os.path.join(artifacts_dir, "logs"))
     logging.info("=== SME Preprocessing & Chunking Pipeline (LSH Enabled) ===")

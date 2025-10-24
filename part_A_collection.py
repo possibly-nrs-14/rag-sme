@@ -16,10 +16,6 @@ logging.basicConfig(
 )
 
 def collect_and_organize_documents(input_dir):
-    """
-    Collects documents from a directory and organizes them by file type.
-    This fulfills the requirements of Part A[cite: 26].
-    """
     logging.info(f"Scanning for documents in: {input_dir}")
     
     supported_extensions = ["*.pdf", "*.docx", "*.pptx", "*.txt", "*.md"]
@@ -46,6 +42,9 @@ def collect_and_organize_documents(input_dir):
             "file_name": file_name,
             "file_type": file_ext,
         }
+
+    for k in organized_corpus:
+        organized_corpus[k] = sorted(organized_corpus[k])
         
     return organized_corpus, metadata
 
