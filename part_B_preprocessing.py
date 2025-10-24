@@ -9,14 +9,13 @@ import hashlib
 import logging
 import orjson
 from tqdm import tqdm
-import fitz  # PyMuPDF
-from datasketch import MinHash, MinHashLSH  # <-- Added this import
+import fitz 
+from datasketch import MinHash, MinHashLSH  
 
 # Regex for tokenization, needed by LSH function
 _WORD_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
 def setup_logging(log_dir):
-    """Sets up comprehensive error logging."""
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f"ingestion_{int(time.time())}.log")
     
@@ -37,14 +36,12 @@ def setup_logging(log_dir):
     return log_path
 
 def tokenize(s):
-    """Part B: Tokenization (used by chunking and LSH)."""
     return _WORD_RE.findall(s)
 
 def count_tokens(s):
     return len(tokenize(s))
 
 def normalize_spaces(s):
-    """Part B: Preprocessing including lowercasing and content removal."""
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\u00A0", " ", s)
     s = re.sub(r" *\n *", "\n", s)
@@ -67,7 +64,7 @@ def clean_pdf(path, threshold=10):
                 page_texts.append("")
                 continue
 
-            # Your existing logic for column detection and ordering
+            # Column detection and ordering
             mid_x = (page.rect.x0 + page.rect.x1) / 2
             left_blocks, right_blocks = [], []
             for b in blocks:
@@ -176,8 +173,6 @@ def content_aware_chunk(text, max_tokens, overlap_tokens):
         else:
             final_chunks.append(ch)
     return final_chunks
-
-# --- REPLACED DEDUPLICATION SECTION ---
 
 def deduplicate(chunks, threshold=0.9, num_perm=128):
     """
@@ -324,7 +319,7 @@ def main():
     run_batch(
         input_dir="./data", 
         artifacts_dir="./artifacts", 
-        granularities=[2048, 512, 128], # As required
+        granularities=[2048, 512, 128], 
         overlap_tokens=64
     )
 
