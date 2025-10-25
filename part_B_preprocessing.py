@@ -1,4 +1,3 @@
-# part_B_preprocessing.py
 import os
 import re
 import sys
@@ -13,6 +12,9 @@ import fitz
 from datasketch import MinHash, MinHashLSH  
 
 from part_C_embeddings import save_document_graph
+
+# Import sanitization and normalization functions
+from helpers import normalize_spaces, sanitize_for_injection
 
 # Regex for tokenization, needed by LSH function
 _WORD_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
@@ -43,12 +45,7 @@ def tokenize(s):
 def count_tokens(s):
     return len(tokenize(s))
 
-def normalize_spaces(s):
-    s = re.sub(r"[ \t]+", " ", s)
-    s = re.sub(r"\u00A0", " ", s)
-    s = re.sub(r" *\n *", "\n", s)
-    s = re.sub(r"\n{3,}", "\n\n", s)
-    return s.strip()
+# normalize_spaces is now imported from helpers.py
 
 def clean_pdf(path, threshold=10):
     """Parses and cleans a single PDF, removing non-informative content."""
@@ -82,6 +79,12 @@ def clean_pdf(path, threshold=10):
             kept_lines = []
             for j, (_, _, txt) in enumerate(ordered):
                 plain = normalize_spaces(txt).lower()  # Lowercasing
+                
+                # --- PRIMARY SANITIZATION ---
+                # Sanitize each text block *before* logic is applied
+                plain = sanitize_for_injection(plain)
+                # ----------------------------
+
                 n_words = len(plain.split())
                 
                 if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain):
@@ -169,10 +172,15 @@ def content_aware_chunk(text, max_tokens, overlap_tokens):
 
     final_chunks = []
     for ch in chunks:
+        # --- DEFENSE-IN-DEPTH SANITIZATION ---
+        # Sanitize the *final* chunk text before it's returned.
+        # This catches any injections formed by joining paragraphs.
         if count_tokens(ch) > max_tokens:
-            final_chunks.extend(recursive_split_by_tokens(ch, max_tokens, overlap_tokens))
+            recursive_chunks = recursive_split_by_tokens(ch, max_tokens, overlap_tokens)
+            final_chunks.extend([sanitize_for_injection(rc) for rc in recursive_chunks])
         else:
-            final_chunks.append(ch)
+            final_chunks.append(sanitize_for_injection(ch))
+            
     return final_chunks
 
 def deduplicate(chunks, threshold=0.9, num_perm=128):
@@ -253,7 +261,8 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
     for g in granularities:  # Segmenting at multiple granularities
         logging.info(f"Chunking {fname} at granularity {g} with overlap {overlap_tokens}")
         chunks = content_aware_chunk(cleaned, max_tokens=g, overlap_tokens=overlap_tokens)
-        chunks = [normalize_spaces(c) for c in chunks]
+        # We don't need to re-normalize or re-sanitize here, 
+        # as content_aware_chunk now handles it.
         chunks = [c for c in chunks if count_tokens(c) >= 10]
         
         # Deduplication now uses LSH
@@ -281,7 +290,7 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
 def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
     os.makedirs(artifacts_dir, exist_ok=True)
     log_path = setup_logging(os.path.join(artifacts_dir, "logs"))
-    logging.info("=== SME Preprocessing & Chunking Pipeline (LSH Enabled) ===")
+    logging.info("=== SME Preprocessing & Chunking Pipeline (LSH Enabled, Sanitized) ===")
     logging.info(f"Input dir: {input_dir}")
     logging.info(f"Artifacts: {artifacts_dir}")
     logging.info(f"Granularities: {granularities}, overlap: {overlap_tokens}")
