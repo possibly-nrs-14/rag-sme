@@ -1,4 +1,3 @@
-# part_A_collection.py
 import os
 import glob
 import logging
@@ -6,7 +5,6 @@ import sys
 from collections import defaultdict
 import json 
 
-# Logging Errors
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -22,13 +20,10 @@ def collect_and_organize_documents(input_dir):
     
     all_files = []
     for ext in supported_extensions:
-        # Use recursive=True to find files in subdirectories
         files = glob.glob(os.path.join(input_dir, "**", ext), recursive=True)
         all_files.extend(files)
         
     logging.info(f"Found {len(all_files)} total files.")
-    
-    # Automatically detect types and process documents
     organized_corpus = defaultdict(list)
     metadata = {}
     for fp in all_files:
@@ -36,8 +31,6 @@ def collect_and_organize_documents(input_dir):
         file_ext = os.path.splitext(fp)[1].lower()
         abs_path = os.path.abspath(fp)
         organized_corpus[file_ext].append(abs_path)
-
-        # Metadata Registry
         metadata[abs_path] = {
             "file_name": file_name,
             "file_type": file_ext,
@@ -49,11 +42,8 @@ def collect_and_organize_documents(input_dir):
     return organized_corpus, metadata
 
 def main():
-    """Main execution block."""
     INPUT_DIR = "./data"
     corpus, metadata = collect_and_organize_documents(INPUT_DIR)
-
-    # Save the Metadata in another folder
     logging.info(f"Total metadata entries: {len(metadata)}")
     os.makedirs("./metadata", exist_ok=True)
     metadata_path = "./metadata/file_metadata.json"
@@ -69,7 +59,6 @@ def main():
 
     for file_type, files in corpus.items():
         print(f"Found {len(files)} files for type: {file_type}")
-        # Print first 5 as a sample
         for f in files[:5]:
             print(f"  - {f}")
 

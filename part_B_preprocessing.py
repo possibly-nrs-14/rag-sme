@@ -10,13 +10,9 @@ import orjson
 from tqdm import tqdm
 import fitz 
 from datasketch import MinHash, MinHashLSH  
-
 from part_C_embeddings import save_document_graph
-
-# Import sanitization and normalization functions
 from helpers import normalize_spaces, sanitize_for_injection
 
-# Regex for tokenization, needed by LSH function
 _WORD_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
 def setup_logging(log_dir):
@@ -45,10 +41,8 @@ def tokenize(s):
 def count_tokens(s):
     return len(tokenize(s))
 
-# normalize_spaces is now imported from helpers.py
 
 def clean_pdf(path, threshold=10):
-    """Parses and cleans a single PDF, removing non-informative content."""
     doc = fitz.open(path)
     base = os.path.basename(path)
     page_texts = []
@@ -63,7 +57,6 @@ def clean_pdf(path, threshold=10):
                 page_texts.append("")
                 continue
 
-            # Column detection and ordering
             mid_x = (page.rect.x0 + page.rect.x1) / 2
             left_blocks, right_blocks = [], []
             for b in blocks:
@@ -78,23 +71,18 @@ def clean_pdf(path, threshold=10):
             ordered = left_blocks + right_blocks
             kept_lines = []
             for j, (_, _, txt) in enumerate(ordered):
-                plain = normalize_spaces(txt).lower()  # Lowercasing
-                
-                # --- PRIMARY SANITIZATION ---
-                # Sanitize each text block *before* logic is applied
+                plain = normalize_spaces(txt).lower() 
                 plain = sanitize_for_injection(plain)
-                # ----------------------------
-
                 n_words = len(plain.split())
                 
-                if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain):
+                if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain or plain in ['chapter', 'april2013', 'brain–machine interfaces']):
                     book_start = True
                 if plain in ["index", "i n d e x"] and (j == 0 or len(doc) - i <= 20):
                     book_end = True
                     break
                 if not book_start:
                     continue
-                if n_words < threshold:  # Removal of non-informative content
+                if n_words < threshold:  
                     continue
                 kept_lines.append(plain)
 
@@ -113,12 +101,10 @@ def clean_and_parse_pdf(path):
     return "\n\n".join(pages)
 
 def split_into_paragraphs(text, threshold=10):
-    """Part B: Content-aware (paragraph-based) splitting."""
     paras = re.split(r"\n\s*\n", text)
     return [normalize_spaces(p) for p in paras if p and count_tokens(p) >= threshold]
 
 def recursive_split_by_tokens(text, max_tokens, overlap_tokens):
-    """Part B: Recursive character splitting with overlap."""
     toks = tokenize(text)
     if len(toks) <= max_tokens:
         return [text]
@@ -136,7 +122,6 @@ def recursive_split_by_tokens(text, max_tokens, overlap_tokens):
     return chunks
 
 def content_aware_chunk(text, max_tokens, overlap_tokens):
-    """Main chunking strategy combining paragraph-splitting and recursive methods."""
     paras = split_into_paragraphs(text)
     chunks, current, cur_tokens = [], [], 0
 
@@ -160,7 +145,7 @@ def content_aware_chunk(text, max_tokens, overlap_tokens):
                     t = count_tokens(para)
                     tail.append(para)
                     tail_tokens += t
-                    if tail_tokens >= overlap_tokens:  # Context-aware overlap
+                    if tail_tokens >= overlap_tokens:  
                         break
                 current = list(reversed(tail))
                 cur_tokens = sum(count_tokens(x) for x in current)
@@ -172,9 +157,6 @@ def content_aware_chunk(text, max_tokens, overlap_tokens):
 
     final_chunks = []
     for ch in chunks:
-        # --- DEFENSE-IN-DEPTH SANITIZATION ---
-        # Sanitize the *final* chunk text before it's returned.
-        # This catches any injections formed by joining paragraphs.
         if count_tokens(ch) > max_tokens:
             recursive_chunks = recursive_split_by_tokens(ch, max_tokens, overlap_tokens)
             final_chunks.extend([sanitize_for_injection(rc) for rc in recursive_chunks])
@@ -188,21 +170,14 @@ def deduplicate(chunks, threshold=0.9, num_perm=128):
     
     if not chunks:
         return []
-
-    # Initialize LSH index
     lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
-    
-    # Create MinHashes for all chunks
     minhashes = {}
     for i, chunk in enumerate(chunks):
         key = f"chunk_{i}"
-        
-        # Tokenize the chunk to create a set of words
         tokens = set(tokenize(chunk.lower()))
         if not tokens:
             continue
-            
-        # Create a MinHash
+ 
         m = MinHash(num_perm=num_perm)
         for d in tokens:
             m.update(d.encode('utf8'))
@@ -210,24 +185,15 @@ def deduplicate(chunks, threshold=0.9, num_perm=128):
         minhashes[key] = m
         lsh.insert(key, m)
 
-    # Query to find duplicates and build the final list
     out = []
     seen_keys = set()
 
     for i, chunk in enumerate(chunks):
         key = f"chunk_{i}"
-        
-        # Skip if we don't have a hash or it's already part of a cluster
         if key not in minhashes or key in seen_keys:
             continue
-            
-        # Find near-duplicates in the LSH index
         result = lsh.query(minhashes[key])
-        
-        # Add the first item from this duplicate cluster (the current chunk)
         out.append(chunk)
-        
-        # Mark all members of this cluster as seen
         for res_key in result:
             seen_keys.add(res_key)
             
@@ -241,7 +207,6 @@ def write_jsonl(path, rows):
             f.write(orjson.dumps(r, option=orjson.OPT_APPEND_NEWLINE))
 
 def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
-    """Orchestrates the chunking of one PDF at multiple granularities."""
     fname = os.path.basename(filepath)
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"
     logging.info(f"Parsing: {fname}")
@@ -255,17 +220,12 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
     with open(cleaned_out, "w", encoding="utf-8") as f:
         f.write(cleaned)
     
-    # We create one stable hash for the entire parent document
     parent_hash = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
 
-    for g in granularities:  # Segmenting at multiple granularities
+    for g in granularities: 
         logging.info(f"Chunking {fname} at granularity {g} with overlap {overlap_tokens}")
         chunks = content_aware_chunk(cleaned, max_tokens=g, overlap_tokens=overlap_tokens)
-        # We don't need to re-normalize or re-sanitize here, 
-        # as content_aware_chunk now handles it.
         chunks = [c for c in chunks if count_tokens(c) >= 10]
-        
-        # Deduplication now uses LSH
         chunks = deduplicate(chunks, threshold=0.9) 
 
         rows = []
@@ -312,23 +272,3 @@ def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
 
     logging.info(f"=== DONE | {overall} | Logs: {log_path}")
 
-def main():
-    """Main execution block."""
-    run_batch(
-        input_dir="./data", 
-        artifacts_dir="./artifacts", 
-        granularities=[2048, 512, 128], 
-        overlap_tokens=64
-    )
-
-#     save_document_graph(
-#     doc_id=doc_id,
-#     basename=fname,
-#     tokens=g,
-#     rows=rows,
-#     out_dir=artifacts_dir,
-#     model=sentence-transformers/all-mpnet-base-v2
-# )
-
-if __name__ == "__main__":
-    main()
