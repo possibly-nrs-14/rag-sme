@@ -99,7 +99,6 @@ python part_A_collection.py
 
 ### `part_C_embeddings.py` — Embedding utilities & graph writer
 
-* Lightweight wrapper around **SentenceTransformers** for text embedding.
 * `save_document_graph(...)`:
 
   * Embeds each chunk and writes a **document node** and **chunk nodes** plus sequential/parent edges to:
@@ -126,7 +125,7 @@ python part_A_collection.py
 
 ### `run.py` — Runner script
 
-Imports Part B’s `run_batch(...)` and executes the whole preprocessing + chunking + graph-embedding flow with default parameters and locations. Run it with:
+Imports Part B’s `run_batch()` and executes the whole preprocessing + chunking + graph-embedding flow with default parameters and locations. Run it with:
 
 ```bash
 python run.py
