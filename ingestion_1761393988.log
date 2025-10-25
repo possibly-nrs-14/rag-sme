@@ -1,0 +1,143 @@
+2025-10-25 17:36:28,691 | INFO | === SME Preprocessing & Chunking Pipeline (LSH Enabled, Sanitized) ===
+2025-10-25 17:36:28,691 | INFO | Input dir: ./data
+2025-10-25 17:36:28,691 | INFO | Artifacts: ./artifacts
+2025-10-25 17:36:28,691 | INFO | Granularities: [2048, 512, 128], overlap: 64
+2025-10-25 17:36:28,691 | INFO | Parsing: Carpenter Human-Neuroanatomy_text.pdf
+2025-10-25 17:36:30,212 | INFO | Cleaned Carpenter Human-Neuroanatomy_text.pdf: {'clean_chars': 728581}
+2025-10-25 17:36:30,214 | INFO | Chunking Carpenter Human-Neuroanatomy_text.pdf at granularity 2048 with overlap 64
+2025-10-25 17:36:30,614 | INFO | Deduplicating 81 chunks with LSH (threshold=0.9)...
+2025-10-25 17:36:31,034 | INFO | Reduced to 81 chunks after LSH deduplication.
+2025-10-25 17:36:31,065 | INFO | Wrote 81 chunks to ./artifacts\chunks\2048_tokens_Carpenter Human-Neuroanatomy_text.jsonl
+2025-10-25 17:36:31,084 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:36:31,084 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:36:35,774 | INFO | Wrote embedding graph for Carpenter Human-Neuroanatomy_text.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:36:35,778 | INFO | Chunking Carpenter Human-Neuroanatomy_text.pdf at granularity 512 with overlap 64
+2025-10-25 17:36:36,558 | INFO | Deduplicating 707 chunks with LSH (threshold=0.9)...
+2025-10-25 17:36:37,774 | INFO | Reduced to 706 chunks after LSH deduplication.
+2025-10-25 17:36:37,824 | INFO | Wrote 706 chunks to ./artifacts\chunks\512_tokens_Carpenter Human-Neuroanatomy_text.jsonl
+2025-10-25 17:36:37,826 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:36:37,826 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:36:48,183 | INFO | Wrote embedding graph for Carpenter Human-Neuroanatomy_text.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:36:48,183 | INFO | Chunking Carpenter Human-Neuroanatomy_text.pdf at granularity 128 with overlap 64
+2025-10-25 17:36:48,858 | INFO | Deduplicating 1827 chunks with LSH (threshold=0.9)...
+2025-10-25 17:36:50,671 | INFO | Reduced to 1827 chunks after LSH deduplication.
+2025-10-25 17:36:50,719 | INFO | Wrote 1827 chunks to ./artifacts\chunks\128_tokens_Carpenter Human-Neuroanatomy_text.jsonl
+2025-10-25 17:36:50,721 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:36:50,721 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:05,561 | INFO | Wrote embedding graph for Carpenter Human-Neuroanatomy_text.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:05,561 | INFO | Parsing: Kandal Neural Science.pdf
+2025-10-25 17:37:05,958 | INFO | Cleaned Kandal Neural Science.pdf: {'clean_chars': 71817}
+2025-10-25 17:37:05,958 | INFO | Chunking Kandal Neural Science.pdf at granularity 2048 with overlap 64
+2025-10-25 17:37:06,014 | INFO | Deduplicating 12 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:06,081 | INFO | Reduced to 12 chunks after LSH deduplication.
+2025-10-25 17:37:06,085 | INFO | Wrote 12 chunks to ./artifacts\chunks\2048_tokens_Kandal Neural Science.jsonl
+2025-10-25 17:37:06,086 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:06,088 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:10,169 | INFO | Wrote embedding graph for Kandal Neural Science.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:10,169 | INFO | Chunking Kandal Neural Science.pdf at granularity 512 with overlap 64
+2025-10-25 17:37:10,216 | INFO | Deduplicating 35 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:10,306 | INFO | Reduced to 35 chunks after LSH deduplication.
+2025-10-25 17:37:10,310 | INFO | Wrote 35 chunks to ./artifacts\chunks\512_tokens_Kandal Neural Science.jsonl
+2025-10-25 17:37:10,312 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:10,312 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:14,208 | INFO | Wrote embedding graph for Kandal Neural Science.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:14,211 | INFO | Chunking Kandal Neural Science.pdf at granularity 128 with overlap 64
+2025-10-25 17:37:14,282 | INFO | Deduplicating 188 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:14,494 | INFO | Reduced to 188 chunks after LSH deduplication.
+2025-10-25 17:37:14,497 | INFO | Wrote 188 chunks to ./artifacts\chunks\128_tokens_Kandal Neural Science.jsonl
+2025-10-25 17:37:14,502 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:14,502 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:18,934 | INFO | Wrote embedding graph for Kandal Neural Science.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:18,935 | INFO | Parsing: a_textbook_of_neuroanatomy.pdf
+2025-10-25 17:37:21,755 | INFO | Cleaned a_textbook_of_neuroanatomy.pdf: {'clean_chars': 1274096}
+2025-10-25 17:37:21,756 | INFO | Chunking a_textbook_of_neuroanatomy.pdf at granularity 2048 with overlap 64
+2025-10-25 17:37:22,664 | INFO | Deduplicating 186 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:23,443 | INFO | Reduced to 186 chunks after LSH deduplication.
+2025-10-25 17:37:23,501 | INFO | Wrote 186 chunks to ./artifacts\chunks\2048_tokens_a_textbook_of_neuroanatomy.jsonl
+2025-10-25 17:37:23,504 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:23,504 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:29,159 | INFO | Wrote embedding graph for a_textbook_of_neuroanatomy.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:29,159 | INFO | Chunking a_textbook_of_neuroanatomy.pdf at granularity 512 with overlap 64
+2025-10-25 17:37:30,070 | INFO | Deduplicating 731 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:31,252 | INFO | Reduced to 722 chunks after LSH deduplication.
+2025-10-25 17:37:31,305 | INFO | Wrote 722 chunks to ./artifacts\chunks\512_tokens_a_textbook_of_neuroanatomy.jsonl
+2025-10-25 17:37:31,308 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:31,308 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:37:41,948 | INFO | Wrote embedding graph for a_textbook_of_neuroanatomy.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:37:41,948 | INFO | Chunking a_textbook_of_neuroanatomy.pdf at granularity 128 with overlap 64
+2025-10-25 17:37:43,181 | INFO | Deduplicating 3201 chunks with LSH (threshold=0.9)...
+2025-10-25 17:37:46,364 | INFO | Reduced to 3200 chunks after LSH deduplication.
+2025-10-25 17:37:46,449 | INFO | Wrote 3200 chunks to ./artifacts\chunks\128_tokens_a_textbook_of_neuroanatomy.jsonl
+2025-10-25 17:37:46,451 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:37:46,451 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:38:06,990 | INFO | Wrote embedding graph for a_textbook_of_neuroanatomy.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:38:06,993 | INFO | Parsing: barr_human_nervous_system.pdf
+2025-10-25 17:38:08,278 | INFO | Cleaned barr_human_nervous_system.pdf: {'clean_chars': 1096406}
+2025-10-25 17:38:08,288 | INFO | Chunking barr_human_nervous_system.pdf at granularity 2048 with overlap 64
+2025-10-25 17:38:09,059 | INFO | Deduplicating 160 chunks with LSH (threshold=0.9)...
+2025-10-25 17:38:09,827 | INFO | Reduced to 160 chunks after LSH deduplication.
+2025-10-25 17:38:09,881 | INFO | Wrote 160 chunks to ./artifacts\chunks\2048_tokens_barr_human_nervous_system.jsonl
+2025-10-25 17:38:09,883 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:38:09,883 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:38:15,161 | INFO | Wrote embedding graph for barr_human_nervous_system.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:38:15,161 | INFO | Chunking barr_human_nervous_system.pdf at granularity 512 with overlap 64
+2025-10-25 17:38:15,932 | INFO | Deduplicating 664 chunks with LSH (threshold=0.9)...
+2025-10-25 17:38:17,069 | INFO | Reduced to 656 chunks after LSH deduplication.
+2025-10-25 17:38:17,124 | INFO | Wrote 656 chunks to ./artifacts\chunks\512_tokens_barr_human_nervous_system.jsonl
+2025-10-25 17:38:17,126 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:38:17,126 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:38:27,165 | INFO | Wrote embedding graph for barr_human_nervous_system.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:38:27,165 | INFO | Chunking barr_human_nervous_system.pdf at granularity 128 with overlap 64
+2025-10-25 17:38:28,177 | INFO | Deduplicating 2885 chunks with LSH (threshold=0.9)...
+2025-10-25 17:38:31,158 | INFO | Reduced to 2885 chunks after LSH deduplication.
+2025-10-25 17:38:31,233 | INFO | Wrote 2885 chunks to ./artifacts\chunks\128_tokens_barr_human_nervous_system.jsonl
+2025-10-25 17:38:31,233 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:38:31,233 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:38:49,438 | INFO | Wrote embedding graph for barr_human_nervous_system.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:38:49,438 | INFO | Parsing: clinical-neuroanatomy-27-stephen.pdf
+2025-10-25 17:38:50,391 | INFO | Cleaned clinical-neuroanatomy-27-stephen.pdf: {'clean_chars': 805697}
+2025-10-25 17:38:50,391 | INFO | Chunking clinical-neuroanatomy-27-stephen.pdf at granularity 2048 with overlap 64
+2025-10-25 17:38:50,876 | INFO | Deduplicating 116 chunks with LSH (threshold=0.9)...
+2025-10-25 17:38:51,403 | INFO | Reduced to 116 chunks after LSH deduplication.
+2025-10-25 17:38:51,441 | INFO | Wrote 116 chunks to ./artifacts\chunks\2048_tokens_clinical-neuroanatomy-27-stephen.jsonl
+2025-10-25 17:38:51,443 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:38:51,443 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:38:56,200 | INFO | Wrote embedding graph for clinical-neuroanatomy-27-stephen.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:38:56,200 | INFO | Chunking clinical-neuroanatomy-27-stephen.pdf at granularity 512 with overlap 64
+2025-10-25 17:38:56,732 | INFO | Deduplicating 515 chunks with LSH (threshold=0.9)...
+2025-10-25 17:38:57,597 | INFO | Reduced to 509 chunks after LSH deduplication.
+2025-10-25 17:38:57,628 | INFO | Wrote 509 chunks to ./artifacts\chunks\512_tokens_clinical-neuroanatomy-27-stephen.jsonl
+2025-10-25 17:38:57,632 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:38:57,632 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:39:06,339 | INFO | Wrote embedding graph for clinical-neuroanatomy-27-stephen.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:39:06,339 | INFO | Chunking clinical-neuroanatomy-27-stephen.pdf at granularity 128 with overlap 64
+2025-10-25 17:39:07,048 | INFO | Deduplicating 2168 chunks with LSH (threshold=0.9)...
+2025-10-25 17:39:09,269 | INFO | Reduced to 2163 chunks after LSH deduplication.
+2025-10-25 17:39:09,321 | INFO | Wrote 2163 chunks to ./artifacts\chunks\128_tokens_clinical-neuroanatomy-27-stephen.jsonl
+2025-10-25 17:39:09,323 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:39:09,323 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:39:23,909 | INFO | Wrote embedding graph for clinical-neuroanatomy-27-stephen.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:39:23,909 | INFO | Parsing: the_human_nervous_system_Charles_R_Noback.pdf
+2025-10-25 17:39:25,070 | INFO | Cleaned the_human_nervous_system_Charles_R_Noback.pdf: {'clean_chars': 1266363}
+2025-10-25 17:39:25,075 | INFO | Chunking the_human_nervous_system_Charles_R_Noback.pdf at granularity 2048 with overlap 64
+2025-10-25 17:39:25,959 | INFO | Deduplicating 192 chunks with LSH (threshold=0.9)...
+2025-10-25 17:39:26,847 | INFO | Reduced to 192 chunks after LSH deduplication.
+2025-10-25 17:39:26,908 | INFO | Wrote 192 chunks to ./artifacts\chunks\2048_tokens_the_human_nervous_system_Charles_R_Noback.jsonl
+2025-10-25 17:39:26,910 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:39:26,910 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:39:33,057 | INFO | Wrote embedding graph for the_human_nervous_system_Charles_R_Noback.pdf at 2048 tokens \u2192 ./artifacts\graph
+2025-10-25 17:39:33,058 | INFO | Chunking the_human_nervous_system_Charles_R_Noback.pdf at granularity 512 with overlap 64
+2025-10-25 17:39:33,925 | INFO | Deduplicating 760 chunks with LSH (threshold=0.9)...
+2025-10-25 17:39:35,195 | INFO | Reduced to 755 chunks after LSH deduplication.
+2025-10-25 17:39:35,253 | INFO | Wrote 755 chunks to ./artifacts\chunks\512_tokens_the_human_nervous_system_Charles_R_Noback.jsonl
+2025-10-25 17:39:35,256 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:39:35,256 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:39:46,301 | INFO | Wrote embedding graph for the_human_nervous_system_Charles_R_Noback.pdf at 512 tokens \u2192 ./artifacts\graph
+2025-10-25 17:39:46,301 | INFO | Chunking the_human_nervous_system_Charles_R_Noback.pdf at granularity 128 with overlap 64
+2025-10-25 17:39:47,507 | INFO | Deduplicating 3409 chunks with LSH (threshold=0.9)...
+2025-10-25 17:39:50,979 | INFO | Reduced to 3407 chunks after LSH deduplication.
+2025-10-25 17:39:51,073 | INFO | Wrote 3407 chunks to ./artifacts\chunks\128_tokens_the_human_nervous_system_Charles_R_Noback.jsonl
+2025-10-25 17:39:51,075 | INFO | Use pytorch device_name: cuda:0
+2025-10-25 17:39:51,075 | INFO | Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-10-25 17:40:11,861 | INFO | Wrote embedding graph for the_human_nervous_system_Charles_R_Noback.pdf at 128 tokens \u2192 ./artifacts\graph
+2025-10-25 17:40:11,861 | INFO | === DONE | {'files': 6, 'clean_chars': 5242960, 'errors': 0} | Logs: ./artifacts\logs\ingestion_1761393988.log
