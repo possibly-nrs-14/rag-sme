@@ -164,7 +164,7 @@ Then run `python rerank.py` to test the reranker.
 
 ## Other
 
-Details on data and outputs can be found in `data_and_outputs.pdf`.
+Details on data and outputs can be found in `data_and_outputs.pdf`. The log has also been uploaded (`ingestion_1761393988.log`)
 
 
 
