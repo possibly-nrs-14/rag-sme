@@ -1,4 +1,4 @@
-# Nervous System RAG Pipeline
+# Nervous System SME
 
 ## Directory layout
 
