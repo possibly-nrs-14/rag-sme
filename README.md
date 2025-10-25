@@ -47,7 +47,7 @@ python run.py
 
 This executes Part B’s `run_batch(...)` with sane defaults (granularities 2048/512/128 and 64-token overlap). 
 
-Outputs appear in `./artifacts/` (see “Outputs” below).
+Outputs appear in `./artifacts/` (see “Output Structure” below).
 
 ### 4) Try retrieval (with optional reranking)
 
@@ -59,7 +59,7 @@ By default the sample at the bottom does a quick query. You can use `use_reranke
 
 ---
 
-## What each part does
+## Script details
 
 ### `part_A_collection.py` — Input discovery & metadata
 
