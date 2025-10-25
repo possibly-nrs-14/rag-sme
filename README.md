@@ -76,7 +76,7 @@ python part_A_collection.py
 
 ### `part_B_preprocessing.py` — Parse ➜ Clean ➜ Chunk ➜ De-dup ➜ Graph
 
-* **Block extraction with PyMuPDF** (`get_text("blocks")`) and **column-aware ordering** (left→right columns, or single-column fallback).
+* **Block extraction with PyMuPDF** (`get_text("blocks")`) and **column-aware ordering** (left→right columns).
 * **Chapter gating / front-matter skip** and **tail trimming** (e.g., basic `index` heuristics).
 * **Sanitization** (neutralizes prompt-injection patterns) + **whitespace normalization** (delegates to `helpers.py`).
 * **Paragraph-aware chunking** with overlapping windows, recursive fallback for long paras.
