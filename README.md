@@ -21,7 +21,6 @@
 ### 1) Environment
 
 ```bash
-# (Windows PowerShell examples — adapt to your shell)
 python -m venv .venv
 .\.venv\Scripts\activate
 
@@ -77,26 +76,24 @@ python part_A_collection.py
 
 ### `part_B_preprocessing.py` — Parse ➜ Clean ➜ Chunk ➜ De-dup ➜ Graph
 
-This is the **heart** of the pipeline:
-
 * **Block extraction with PyMuPDF** (`get_text("blocks")`) and **column-aware ordering** (left→right columns, or single-column fallback).
 * **Chapter gating / front-matter skip** and **tail trimming** (e.g., basic `index` heuristics).
 * **Sanitization** (neutralizes prompt-injection patterns) + **whitespace normalization** (delegates to `helpers.py`).
 * **Paragraph-aware chunking** with overlapping windows, recursive fallback for long paras.
 * **MinHash LSH** de-duplication to reduce near duplicates.
 * **Writes**:
-
   * Cleaned text → `artifacts/clean/<book>__clean.txt`
   * Chunk JSONL per granularity → `artifacts/chunks/<tokens>_tokens_<book>.jsonl`
-* **Also builds embeddings + a document graph** for each granularity **in-process** using Part C’s `save_document_graph(...)` (nodes/edges files). 
+* **Also builds embeddings + a document graph** for each granularity **in-process** using Part C’s `save_document_graph(...)` (nodes/edges files).
+* Finally, the `run_batch` function is used for batch ingestion of all documents in the data directory, and also does comprehensive logging, which is saved to a file at the end. (BONUS)
 
 
 ---
 
-### `helpers.py` — Normalization & injection hardening
+### `helpers.py` — Normalization & injection hardening 
 
 * `normalize_spaces`: consistent whitespace/newline handling.
-* `sanitize_for_injection`: strips control chars and replaces common instruction-like phrases (defense-in-depth). This is used while cleaning blocks and again before final chunk emission to avoid downstream prompt-injection surprises. 
+* `sanitize_for_injection`: strips control chars and replaces common instruction-like phrases. This is used while cleaning blocks and again before final chunk emission to avoid unwelcome downstream prompt-injections. (BONUS)
 
 ---
 
@@ -114,15 +111,12 @@ This is the **heart** of the pipeline:
 
 ---
 
-### `rerank.py` — Retrieval + optional cross-encoder reranking
-
-Self-contained retrieval layer:
+### `rerank.py` — Retrieval + optional cross-encoder reranking (BONUS)
 
 * Loads vectors/metadata from **either** `artifacts/embeddings/*__emb.jsonl` or **graph chunk nodes** under `artifacts/graph/**/__nodes.jsonl`.
 * Builds a FAISS **inner product** index over L2-normalized vecs (equivalent to cosine).
 * Encodes queries via `SentenceTransformer` and runs vector search.
 * Optional **cross-encoder rerank**:
-
   * First choice: `FlagEmbedding.FlagReranker` (`BAAI/bge-reranker-base`), with auto FP16 on GPU, FP32 on CPU.
   * Fallback: `sentence-transformers` `CrossEncoder` (MiniLM) if FlagEmbedding isn’t available.
 * Returns top-k results with both vector and (optionally) rerank scores.
@@ -132,7 +126,7 @@ Self-contained retrieval layer:
 
 ### `run.py` — Runner script
 
-Iimports Part B’s `run_batch(...)` and executes the whole preprocessing + chunking + graph-embedding flow with your default parameters and locations. Run it with:
+Imports Part B’s `run_batch(...)` and executes the whole preprocessing + chunking + graph-embedding flow with default parameters and locations. Run it with:
 
 ```bash
 python run.py
@@ -168,7 +162,9 @@ Then run `python rerank.py` to test the reranker.
 
 ---
 
+## Other
 
+Details on data and outputs can be found in data_and_outputs.pdf.
 
 
 
