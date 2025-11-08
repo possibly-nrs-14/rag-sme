@@ -169,7 +169,7 @@ Details on data and outputs can be found in `data_and_outputs.pdf`. The log has 
 
 Update: To run the complete pieline so far (the part I file), do this:
 ```
-$env:SME_INGEST_ON_START="0"  # set to 1 if you want to run batch ingestion and preprocessing before starting the app and 0 if you don't.
+$env:SME_INGEST_ON_START="0"  # set to 1 if you want to run batch ingestion and preprocessing before starting the app and 0 if you don't. When running on a device for the first time, set it to 1, and subsequent times set it to 0 (unless you delete the artifacts folder created)
 $env:SME_GRANULARITIES="2048,512,128"
 $env:SME_OVERLAP_TOKENS="64"
 python .\part_I_system_components.py
