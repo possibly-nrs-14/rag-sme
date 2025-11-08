@@ -167,3 +167,12 @@ Details on data and outputs can be found in `data_and_outputs.pdf`. The log has 
 
 
 
+Update: To run the complete pieline so far (the part I file), do this:
+```
+$env:SME_INGEST_ON_START="0"
+$env:SME_GRANULARITIES="2048,512,128"
+$env:SME_OVERLAP_TOKENS="64"
+python .\part_I_system_components.py
+
+```
+
