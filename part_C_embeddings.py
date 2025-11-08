@@ -91,8 +91,8 @@ def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None):
         if r.get("next_chunk_id"):
             edges.append({"src_id": node_id, "dst_id": r["next_chunk_id"], "edge_type": "next"})
 
-    nodes_path = os.path.join(out_dir, "graph", f"{tokens}_tokens_{stem}__nodes.jsonl")
-    edges_path = os.path.join(out_dir, "graph", f"{tokens}_tokens_{stem}__edges.jsonl")
+    nodes_path = os.path.join(out_dir, f"{tokens}_tokens_{stem}__nodes.jsonl")
+    edges_path = os.path.join(out_dir, f"{tokens}_tokens_{stem}__edges.jsonl")
 
     _write_jsonl(nodes_path, [doc_node] + chunk_nodes)
     _write_jsonl(edges_path, edges)
