@@ -22,6 +22,7 @@ except Exception:
     _HAS_ST = False
     _HAS_XE = False
 
+from part_C_embeddings import DEFAULT_EMBED_MODEL
 
 def _json_lines(path):
     try:
@@ -142,7 +143,7 @@ class EmbeddingIndex:
 
 
 class QueryEncoder:
-    def __init__(self, model_name="sentence-transformers/all-mpnet-base-v2", device=None):
+    def __init__(self, model_name=DEFAULT_EMBED_MODEL, device=None):
         if not _HAS_ST:
             raise RuntimeError("sentence-transformers not installed")
         self.model = SentenceTransformer(model_name, device=device)

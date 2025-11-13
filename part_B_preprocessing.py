@@ -63,6 +63,71 @@ def count_tokens(s):
 
 # normalize_spaces is now imported from helpers.py
 
+def clean_pdf(path, threshold=10):
+    """Parses and cleans a single PDF, removing non-informative content."""
+    doc = fitz.open(path)
+    base = os.path.basename(path)
+    page_texts = []
+    book_start = False
+    book_end = False
+
+    for i in range(len(doc)):
+        try:
+            page = doc[i]
+            blocks = page.get_text("blocks")
+            if not blocks:
+                page_texts.append("")
+                continue
+
+            # Column detection and ordering
+            mid_x = (page.rect.x0 + page.rect.x1) / 2
+            left_blocks, right_blocks = [], []
+            for b in blocks:
+                if len(b) < 5: continue
+                x0, y0, x1, y1, txt = b[0], b[1], b[2], b[3], b[4] or ""
+                if not txt.strip(): continue
+                cx = (x0 + x1) / 2
+                (left_blocks if cx < mid_x else right_blocks).append((y0, x0, txt))
+
+            left_blocks.sort(key=lambda t: (t[0], t[1]))
+            right_blocks.sort(key=lambda t: (t[0], t[1]))
+            ordered = left_blocks + right_blocks
+            kept_lines = []
+            for j, (_, _, txt) in enumerate(ordered):
+                plain = normalize_spaces(txt).lower()  # Lowercasing
+                
+                # --- PRIMARY SANITIZATION ---
+                # Sanitize each text block *before* logic is applied
+                plain = sanitize_for_injection(plain)
+                # ----------------------------
+
+                n_words = len(plain.split())
+                
+                if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain or plain in ['chapter', 'april2013', 'brain–machine interfaces']): #changed this
+                    book_start = True
+                if plain in ["index", "i n d e x"] and (j == 0 or len(doc) - i <= 20):
+                    book_end = True
+                    break
+                if not book_start:
+                    continue
+                if n_words < threshold:  # Removal of non-informative content
+                    continue
+                kept_lines.append(plain)
+
+            page_texts.append("\n".join(kept_lines))
+        except Exception as e:
+            logging.exception(f"Failed to process blocks on page {i+1} of {base}: {e}")
+            page_texts.append("")
+        if book_end:
+            break
+            
+    doc.close()
+    return page_texts
+
+def clean_and_parse_pdf(path):
+    pages = clean_pdf(path)
+    return "\n\n".join(pages)
+
 def load_plain_text_file(path):
     """Load and sanitize a plain-text or markdown file."""
     try:
