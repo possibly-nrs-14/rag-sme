@@ -176,3 +176,5 @@ python .\part_I_system_components.py
 
 ```
 
+Refs
+https://huggingface.co/FremyCompany/BioLORD-2023 - domain specific model for embeddings (better than mpnet in all benchmarks)
