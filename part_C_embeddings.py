@@ -46,8 +46,10 @@ def _write_jsonl(path, rows):
             f.write(orjson.dumps(r, option=orjson.OPT_APPEND_NEWLINE))
 
 
-def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None):
-    embedder = TextEmbedder(model=model)
+def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, embedder=None):
+    # Reuse shared embedder if provided, otherwise create new one
+    if embedder is None:
+        embedder = TextEmbedder(model=model)
     texts = [r["text"] for r in rows]
     embs = embedder.embed(texts)
 

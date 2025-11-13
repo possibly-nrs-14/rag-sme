@@ -18,7 +18,7 @@
 
 ## Quick start
 
-### 1) Environment
+### 1. Environment
 
 ```bash
 python -m venv .venv
@@ -30,7 +30,7 @@ pip install pymupdf datasketch tqdm orjson numpy faiss-cpu sentence-transformers
 pip install FlagEmbedding  # and a torch build (CPU or CUDA) if not already installed
 ```
 
-### 2) Put PDFs in `./data`
+### 2. Put PDFs in `./data`
 
 Place your textbooks in `./data/`. E.g.:
 
@@ -39,7 +39,7 @@ Place your textbooks in `./data/`. E.g.:
 ./data/barr_human_nervous_system.pdf
 ```
 
-### 3) Run the pipeline
+### 3. Run the pipeline
 
 ```bash
 python run.py
@@ -49,7 +49,7 @@ This executes Part B’s `run_batch(...)` with sane defaults (granularities 2048
 
 Outputs appear in `./artifacts/` (see “Output Structure” below).
 
-### 4) Try retrieval (with optional reranking)
+### 4. Try retrieval (with optional reranking)
 
 ```bash
 python rerank.py

@@ -93,10 +93,10 @@ def lc_templates():
     )
     return qa, quiz
 
-def add_context(docs, k=3, max_chars=1200):
+def add_context(docs, k=3):
     chunks = []
     for d in docs[:k]:
-        t = (d.get("text") or "")[:max_chars]
+        t = (d.get("text") or "")
         chunks.append(t)
     return "\n\n---\n\n".join(chunks)
 
@@ -120,7 +120,7 @@ def generate_single_mcq_from_context(context_text, llm, quiz_prompt):
     raw = (quiz_prompt | llm | StrOutputParser()).invoke({"context": context_text})
     return parse_quiz_json(raw)
 
-def build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=5, max_chars=1500):
+def build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=5):
     docs = search_tool.run(topic)
     shuffled = list(docs)
     random.shuffle(shuffled)
@@ -128,7 +128,7 @@ def build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_question
     for d in shuffled:
         if len(items) >= n_questions:
             break
-        context_text = (d.get("text") or "")[:max_chars]
+        context_text = (d.get("text") or "")
         parsed = generate_single_mcq_from_context(context_text, llm, quiz_prompt)
         if parsed:
             parsed["source"] = {

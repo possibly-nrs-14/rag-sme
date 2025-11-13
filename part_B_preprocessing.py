@@ -11,13 +11,29 @@ from tqdm import tqdm
 import fitz 
 from datasketch import MinHash, MinHashLSH  
 
-from part_C_embeddings import save_document_graph
+try:
+    from pptx import Presentation
+except ImportError:
+    Presentation = None
+
+try:
+    import docx
+except ImportError:
+    docx = None
+
+from part_C_embeddings import save_document_graph, TextEmbedder
+from part_A_collection import collect_and_organize_documents
 
 # Import sanitization and normalization functions
 from helpers import normalize_spaces, sanitize_for_injection
 
 # Regex for tokenization, needed by LSH function
 _WORD_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
+
+# Module-level constants for document cleaning heuristics
+CHAPTER_START_PATTERNS = ["c h a p t e r", "gross anatomy of the brain", "chapter", "april2013", "brain–machine interfaces"]
+CHAPTER_END_PATTERNS = ["index", "i n d e x"]
+MIN_WORDS_THRESHOLD = 10
 
 def setup_logging(log_dir):
     os.makedirs(log_dir, exist_ok=True)
@@ -47,7 +63,7 @@ def count_tokens(s):
 
 # normalize_spaces is now imported from helpers.py
 
-def clean_pdf(path, threshold=10):
+def clean_pdf(path, threshold=MIN_WORDS_THRESHOLD):
     """Parses and cleans a single PDF, removing non-informative content."""
     doc = fitz.open(path)
     base = os.path.basename(path)
@@ -78,24 +94,33 @@ def clean_pdf(path, threshold=10):
             ordered = left_blocks + right_blocks
             kept_lines = []
             for j, (_, _, txt) in enumerate(ordered):
-                plain = normalize_spaces(txt).lower()  # Lowercasing
-                
+                # Normalize once, keep original case
+                plain = normalize_spaces(txt)
+
+                # Use lowercased copy only for heuristic checks
+                plain_lower = plain.lower()
+                n_words = len(plain_lower.split())
+
+                # Chapter start detection using constants
+                if not book_start:
+                    if any(pattern in plain_lower for pattern in CHAPTER_START_PATTERNS):
+                        book_start = True
+
+                # Chapter end detection using constants
+                if plain_lower in CHAPTER_END_PATTERNS and (j == 0 or len(doc) - i <= 20):
+                    book_end = True
+                    break
+
+                if not book_start:
+                    continue
+                if n_words < threshold:
+                    continue
+
                 # --- PRIMARY SANITIZATION ---
-                # Sanitize each text block *before* logic is applied
+                # Sanitize the original-case text before output
                 plain = sanitize_for_injection(plain)
                 # ----------------------------
 
-                n_words = len(plain.split())
-                
-                if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain or plain in ['chapter', 'april2013', 'brain–machine interfaces']): #changed this
-                    book_start = True
-                if plain in ["index", "i n d e x"] and (j == 0 or len(doc) - i <= 20):
-                    book_end = True
-                    break
-                if not book_start:
-                    continue
-                if n_words < threshold:  # Removal of non-informative content
-                    continue
                 kept_lines.append(plain)
 
             page_texts.append("\n".join(kept_lines))
@@ -104,13 +129,77 @@ def clean_pdf(path, threshold=10):
             page_texts.append("")
         if book_end:
             break
-            
+
     doc.close()
     return page_texts
 
 def clean_and_parse_pdf(path):
     pages = clean_pdf(path)
     return "\n\n".join(pages)
+
+def load_plain_text_file(path):
+    """Load and sanitize a plain-text or markdown file."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            raw = f.read()
+    except Exception as e:
+        logging.exception(f"Failed to read text file {path}: {e}")
+        return ""
+    text = normalize_spaces(raw)
+    return sanitize_for_injection(text)
+
+
+def load_docx(path):
+    """Extract text from DOCX, one paragraph per line."""
+    if docx is None:
+        logging.warning("python-docx not installed; skipping DOCX file: %s", path)
+        return ""
+    try:
+        d = docx.Document(path)
+        paras = [normalize_spaces(p.text) for p in d.paragraphs if p.text.strip()]
+        text = "\n\n".join(paras)
+        return sanitize_for_injection(text)
+    except Exception as e:
+        logging.exception(f"Failed to parse DOCX {path}: {e}")
+        return ""
+
+
+def load_pptx(path):
+    """Extract text from PPTX slides."""
+    if Presentation is None:
+        logging.warning("python-pptx not installed; skipping PPTX file: %s", path)
+        return ""
+    try:
+        pres = Presentation(path)
+        texts = []
+        for slide in pres.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text:
+                    texts.append(normalize_spaces(shape.text))
+        text = "\n\n".join(t for t in texts if t)
+        return sanitize_for_injection(text)
+    except Exception as e:
+        logging.exception(f"Failed to parse PPTX {path}: {e}")
+        return ""
+
+def clean_and_parse_any(path):
+    """Unified loader that routes to the appropriate parser based on file extension."""
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        if ext == '.pdf':
+            return clean_and_parse_pdf(path)
+        elif ext == '.docx':
+            return load_docx(path)
+        elif ext == '.pptx':
+            return load_pptx(path)
+        elif ext in ['.txt', '.md']:
+            return load_plain_text_file(path)
+        else:
+            logging.warning(f"Unsupported file extension: {ext} for file {path}")
+            return ""
+    except Exception as e:
+        logging.exception(f"Failed to parse {path}: {e}")
+        return ""
 
 def split_into_paragraphs(text, threshold=10):
     """Part B: Content-aware (paragraph-based) splitting."""
@@ -240,13 +329,18 @@ def write_jsonl(path, rows):
         for r in rows:
             f.write(orjson.dumps(r, option=orjson.OPT_APPEND_NEWLINE))
 
-def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
-    """Orchestrates the chunking of one PDF at multiple granularities."""
+def process_single_document(filepath, granularities, overlap_tokens, artifacts_dir, embedder=None):
+    """Orchestrates the chunking of one document at multiple granularities."""
     fname = os.path.basename(filepath)
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"
     logging.info(f"Parsing: {fname}")
 
-    cleaned = clean_and_parse_pdf(filepath)
+    # Use unified loader for all file types
+    cleaned = clean_and_parse_any(filepath)
+    if not cleaned:
+        logging.warning(f"No content extracted from {fname}, skipping.")
+        return {"clean_chars": 0}
+
     stats = {"clean_chars": len(cleaned)}
     logging.info(f"Cleaned {fname}: {stats}")
 
@@ -254,19 +348,25 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
     os.makedirs(os.path.dirname(cleaned_out), exist_ok=True)
     with open(cleaned_out, "w", encoding="utf-8") as f:
         f.write(cleaned)
-    
+
     # We create one stable hash for the entire parent document
     parent_hash = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
 
+    # Per-granularity overlap configuration with fallback
+    overlap_config = {2048: 256, 512: 128, 128: 32}
+
     for g in granularities:  # Segmenting at multiple granularities
-        logging.info(f"Chunking {fname} at granularity {g} with overlap {overlap_tokens}")
-        chunks = content_aware_chunk(cleaned, max_tokens=g, overlap_tokens=overlap_tokens)
-        # We don't need to re-normalize or re-sanitize here, 
+        # Use configured overlap for this granularity, fallback to parameter
+        actual_overlap = overlap_config.get(g, overlap_tokens)
+        logging.info(f"Chunking {fname} at granularity {g} with overlap {actual_overlap}")
+
+        chunks = content_aware_chunk(cleaned, max_tokens=g, overlap_tokens=actual_overlap)
+        # We don't need to re-normalize or re-sanitize here,
         # as content_aware_chunk now handles it.
         chunks = [c for c in chunks if count_tokens(c) >= 10]
-        
+
         # Deduplication now uses LSH
-        chunks = deduplicate(chunks, threshold=0.9) 
+        chunks = deduplicate(chunks, threshold=0.9)
 
         rows = []
         for i, ch in enumerate(chunks):
@@ -274,7 +374,7 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
                 "chunk_id": f"{doc_id}_{g}_{i:05d}", "doc_id": doc_id,
                 "parent_doc_hash": parent_hash, "source_path": os.path.abspath(filepath),
                 "source_basename": fname, "granularity_tokens": g,
-                "overlap_tokens": overlap_tokens, "position": i,
+                "overlap_tokens": actual_overlap, "position": i,
                 "num_positions": len(chunks), "text": ch, "n_tokens": count_tokens(ch),
                 "prev_chunk_id": f"{doc_id}_{g}_{i-1:05d}" if i > 0 else None,
                 "next_chunk_id": f"{doc_id}_{g}_{i+1:05d}" if i < len(chunks)-1 else None,
@@ -285,7 +385,8 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
         out_path = os.path.join(artifacts_dir, "chunks", f"{g}_tokens_{os.path.splitext(fname)[0]}.jsonl")
         write_jsonl(out_path, rows)
         logging.info(f"Wrote {len(rows)} chunks to {out_path}")
-        #my modification starts here
+
+        # Build embedding graph with optional shared embedder
         try:
             graph_dir = os.path.join(artifacts_dir, "graph")
             os.makedirs(graph_dir, exist_ok=True)
@@ -295,56 +396,111 @@ def process_single_pdf(filepath, granularities, overlap_tokens, artifacts_dir):
                 tokens=g,
                 rows=rows,
                 out_dir=graph_dir,
-                model="sentence-transformers/all-mpnet-base-v2"
+                model="sentence-transformers/all-mpnet-base-v2",
+                embedder=embedder
             )
             logging.info(f"Wrote embedding graph for {fname} at {g} tokens → {graph_dir}")
         except Exception as e:
             logging.exception(f"Graph build failed for {fname} @ {g} tokens: {e}")
-        #my modification ends here
     return stats
+
+def _json_lines(path):
+    """Helper to read JSONL files."""
+    try:
+        with open(path, "rb") as f:
+            for line in f:
+                if line.strip():
+                    yield orjson.loads(line)
+    except Exception:
+        import json
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    yield json.loads(line)
 
 def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
     os.makedirs(artifacts_dir, exist_ok=True)
     log_path = setup_logging(os.path.join(artifacts_dir, "logs"))
-    logging.info("=== SME Preprocessing & Chunking Pipeline (LSH Enabled, Sanitized) ===")
+    logging.info("=== SME Preprocessing & Chunking Pipeline (Multi-Format, LSH Enabled, Sanitized) ===")
     logging.info(f"Input dir: {input_dir}")
     logging.info(f"Artifacts: {artifacts_dir}")
     logging.info(f"Granularities: {granularities}, overlap: {overlap_tokens}")
-    
-    pdfs = sorted(glob.glob(os.path.join(input_dir, "*.pdf")))
-    if not pdfs:
-        logging.warning("No PDFs found. Exiting.")
+
+    # Use Part A to discover all supported file types recursively
+    corpus, _ = collect_and_organize_documents(input_dir)
+
+    # Flatten all file paths from corpus
+    all_files = []
+    for file_type, file_list in corpus.items():
+        all_files.extend(file_list)
+
+    if not all_files:
+        logging.warning("No supported documents found. Exiting.")
         return
 
+    logging.info(f"Found {len(all_files)} documents across {len(corpus)} file types")
+
+    # Create shared TextEmbedder for efficiency
+    logging.info("Initializing shared TextEmbedder...")
+    embedder = TextEmbedder(model="sentence-transformers/all-mpnet-base-v2")
+
+    # Process each document
     overall = {"files": 0, "clean_chars": 0, "errors": 0}
-    for fp in tqdm(pdfs, desc="Processing PDFs", ncols=100):
+    for fp in tqdm(all_files, desc="Processing Documents", ncols=100):
         try:
-            stats = process_single_pdf(fp, granularities, overlap_tokens, artifacts_dir)
+            stats = process_single_document(fp, granularities, overlap_tokens, artifacts_dir, embedder=embedder)
             overall["files"] += 1
             overall["clean_chars"] += stats["clean_chars"]
         except Exception as e:
             overall["errors"] += 1
             logging.exception(f"Failed to process {fp}: {e}")
 
+    logging.info(f"Per-document processing complete: {overall}")
+
+    # Batch-level cross-document deduplication per granularity
+    logging.info("=== Starting Batch-Level Cross-Document Deduplication ===")
+    chunks_dir = os.path.join(artifacts_dir, "chunks")
+
+    for g in granularities:
+        try:
+            logging.info(f"Batch dedup for granularity {g} tokens...")
+
+            # Load all chunks for this granularity from all documents
+            chunk_pattern = os.path.join(chunks_dir, f"{g}_tokens_*.jsonl")
+            chunk_files = sorted(glob.glob(chunk_pattern))
+
+            if not chunk_files:
+                logging.warning(f"No chunk files found for {g} tokens, skipping batch dedup")
+                continue
+
+            all_chunks = []
+            for cf in chunk_files:
+                all_chunks.extend(list(_json_lines(cf)))
+
+            logging.info(f"Loaded {len(all_chunks)} chunks from {len(chunk_files)} files @ {g} tokens")
+
+            if not all_chunks:
+                continue
+
+            # Extract texts for deduplication
+            texts = [c["text"] for c in all_chunks]
+
+            # Deduplicate across documents using LSH
+            deduped_texts = deduplicate(texts, threshold=0.9)
+            deduped_set = set(deduped_texts)
+
+            # Filter chunks to keep only deduplicated ones
+            final_chunks = [c for c in all_chunks if c["text"] in deduped_set]
+
+            # Write consolidated batch-deduplicated output
+            batch_out_path = os.path.join(chunks_dir, f"{g}_tokens_batch_deduped.jsonl")
+            write_jsonl(batch_out_path, final_chunks)
+
+            logging.info(f"Batch dedup @ {g} tokens: {len(all_chunks)} → {len(final_chunks)} chunks")
+            logging.info(f"Saved to: {batch_out_path}")
+
+        except Exception as e:
+            logging.exception(f"Batch deduplication failed for {g} tokens: {e}")
+
     logging.info(f"=== DONE | {overall} | Logs: {log_path}")
-
-# def main():
-#     """Main execution block."""              #i commented out this
-#     run_batch(
-#         input_dir="./data", 
-#         artifacts_dir="./artifacts", 
-#         granularities=[2048, 512, 128], 
-#         overlap_tokens=64
-#     )
-
-#     save_document_graph(
-#     doc_id=doc_id,
-#     basename=fname,
-#     tokens=g,
-#     rows=rows,
-#     out_dir=artifacts_dir,
-#     model=sentence-transformers/all-mpnet-base-v2
-# )
-
-# if __name__ == "__main__":       #and this
-#     main()
