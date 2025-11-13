@@ -175,6 +175,11 @@ $env:SME_OVERLAP_TOKENS="64"
 python .\part_I_system_components.py
 
 ```
+$env:SME_INGEST_ON_START="1"
+$env:SME_GRANULARITIES="2048,512,128"
+$env:SME_OVERLAP_TOKENS="64"
+python .\part_I_system_components.py
 
-Refs
-https://huggingface.co/FremyCompany/BioLORD-2023 - domain specific model for embeddings (better than mpnet in all benchmarks)
+# Refs
+https://huggingface.co/FremyCompany/BioLORD-2023
+Domain specific model for embeddings (better than mpnet in all benchmarks)

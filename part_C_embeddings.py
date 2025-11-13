@@ -6,9 +6,12 @@ import numpy as np
 import orjson
 from sentence_transformers import SentenceTransformer
 
+# DEFAULT_EMBED_MODEL = "sentence-transformers/all-mpnet-base-v2"
+DEFAULT_EMBED_MODEL = "FremyCompany/BioLORD-2023"
+
 class TextEmbedder:
     def __init__(self, model=None, batch_size=128):
-        self.model_name = model or "sentence-transformers/all-mpnet-base-v2"
+        self.model_name = model or DEFAULT_EMBED_MODEL
         self.batch_size = batch_size
         self.backend = SentenceTransformer(self.model_name)
         self.dim = int(self.backend.get_sentence_embedding_dimension())

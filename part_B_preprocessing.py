@@ -21,7 +21,7 @@ try:
 except ImportError:
     docx = None
 
-from part_C_embeddings import save_document_graph, TextEmbedder
+from part_C_embeddings import save_document_graph, TextEmbedder, DEFAULT_EMBED_MODEL
 from part_A_collection import collect_and_organize_documents
 
 # Import sanitization and normalization functions
@@ -63,80 +63,6 @@ def count_tokens(s):
 
 # normalize_spaces is now imported from helpers.py
 
-def clean_pdf(path, threshold=MIN_WORDS_THRESHOLD):
-    """Parses and cleans a single PDF, removing non-informative content."""
-    doc = fitz.open(path)
-    base = os.path.basename(path)
-    page_texts = []
-    book_start = False
-    book_end = False
-
-    for i in range(len(doc)):
-        try:
-            page = doc[i]
-            blocks = page.get_text("blocks")
-            if not blocks:
-                page_texts.append("")
-                continue
-
-            # Column detection and ordering
-            mid_x = (page.rect.x0 + page.rect.x1) / 2
-            left_blocks, right_blocks = [], []
-            for b in blocks:
-                if len(b) < 5: continue
-                x0, y0, x1, y1, txt = b[0], b[1], b[2], b[3], b[4] or ""
-                if not txt.strip(): continue
-                cx = (x0 + x1) / 2
-                (left_blocks if cx < mid_x else right_blocks).append((y0, x0, txt))
-
-            left_blocks.sort(key=lambda t: (t[0], t[1]))
-            right_blocks.sort(key=lambda t: (t[0], t[1]))
-            ordered = left_blocks + right_blocks
-            kept_lines = []
-            for j, (_, _, txt) in enumerate(ordered):
-                # Normalize once, keep original case
-                plain = normalize_spaces(txt)
-
-                # Use lowercased copy only for heuristic checks
-                plain_lower = plain.lower()
-                n_words = len(plain_lower.split())
-
-                # Chapter start detection using constants
-                if not book_start:
-                    if any(pattern in plain_lower for pattern in CHAPTER_START_PATTERNS):
-                        book_start = True
-
-                # Chapter end detection using constants
-                if plain_lower in CHAPTER_END_PATTERNS and (j == 0 or len(doc) - i <= 20):
-                    book_end = True
-                    break
-
-                if not book_start:
-                    continue
-                if n_words < threshold:
-                    continue
-
-                # --- PRIMARY SANITIZATION ---
-                # Sanitize the original-case text before output
-                plain = sanitize_for_injection(plain)
-                # ----------------------------
-
-                kept_lines.append(plain)
-
-            page_texts.append("\n".join(kept_lines))
-        except Exception as e:
-            logging.exception(f"Failed to process blocks on page {i+1} of {base}: {e}")
-            page_texts.append("")
-        if book_end:
-            break
-
-    doc.close()
-    return page_texts
-
-def clean_and_parse_pdf(path):
-    pages = clean_pdf(path)
-    return "\n\n".join(pages)
-
 def load_plain_text_file(path):
     """Load and sanitize a plain-text or markdown file."""
     try:
@@ -147,7 +73,6 @@ def load_plain_text_file(path):
         return ""
     text = normalize_spaces(raw)
     return sanitize_for_injection(text)
-
 
 def load_docx(path):
     """Extract text from DOCX, one paragraph per line."""
@@ -162,7 +87,6 @@ def load_docx(path):
     except Exception as e:
         logging.exception(f"Failed to parse DOCX {path}: {e}")
         return ""
-
 
 def load_pptx(path):
     """Extract text from PPTX slides."""
@@ -396,7 +320,8 @@ def process_single_document(filepath, granularities, overlap_tokens, artifacts_d
                 tokens=g,
                 rows=rows,
                 out_dir=graph_dir,
-                model="sentence-transformers/all-mpnet-base-v2",
+                # model="sentence-transformers/all-mpnet-base-v2",
+                model=DEFAULT_EMBED_MODEL,
                 embedder=embedder
             )
             logging.info(f"Wrote embedding graph for {fname} at {g} tokens → {graph_dir}")
@@ -443,7 +368,9 @@ def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
 
     # Create shared TextEmbedder for efficiency
     logging.info("Initializing shared TextEmbedder...")
-    embedder = TextEmbedder(model="sentence-transformers/all-mpnet-base-v2")
+    # embedder = TextEmbedder(model="sentence-transformers/all-mpnet-base-v2")
+    embedder = TextEmbedder(model=DEFAULT_EMBED_MODEL)
+
 
     # Process each document
     overall = {"files": 0, "clean_chars": 0, "errors": 0}
