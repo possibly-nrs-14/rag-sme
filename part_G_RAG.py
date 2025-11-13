@@ -175,10 +175,10 @@ class BGEReranker:
             self.model = None
             self.fallback = None
 
-    def rerank(self, query, texts, batch_size=16, max_chars=2000):
+    def rerank(self, query, texts, batch_size=16):
         if not self.available or not texts:
             return None
-        texts = [(t or "")[:max_chars] for t in texts]
+        texts = [(t or "") for t in texts]
         try:
             pairs = [[query, t] for t in texts]
             if self.model is not None:
