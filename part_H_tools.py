@@ -6,24 +6,35 @@ from docx import Document
 from pptx import Presentation
 
 def export_qa_pdf(answer, sources, out_path):
+    import textwrap
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
     y = h - 72
     c.setFont("Times-Roman", 14)
     for line in (answer or "").split("\n"):
-        c.drawString(72, y, line[:95]); y -= 18
-        if y < 72:
-            c.showPage(); y = h - 72
+        wrapped_lines = textwrap.wrap(line, width=95)
+        for wrapped in wrapped_lines:
+            c.drawString(72, y, wrapped)
+            y -= 18
+            if y < 72:
+                c.showPage()
+                y = h - 72
     y -= 12
-    c.setFont("Times-Bold", 12); c.drawString(72, y, "Sources:"); y -= 18
+    c.setFont("Times-Bold", 12)
+    c.drawString(72, y, "Sources:")
+    y -= 18
     c.setFont("Times-Roman", 10)
     for s in sources or []:
         line = f"- {s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}"
-        c.drawString(72, y, line[:95]); y -= 14
-        if y < 72:
-            c.showPage(); y = h - 72
-    c.save()
+        wrapped_lines = textwrap.wrap(line, width=95)
+        for wrapped in wrapped_lines:
+            c.drawString(72, y, wrapped)
+            y -= 14
+            if y < 72:
+                c.showPage()
+                y = h - 72
+    c.save()    
 
 def export_quiz_pdf(items, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)

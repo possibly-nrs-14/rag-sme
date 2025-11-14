@@ -89,6 +89,9 @@ def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, emb
             "text": r.get("text", ""),
             "embedding": vec,
             "created_at": r["created_at"],
+            "parent_doc_hash": r.get("parent_doc_hash"),
+            "n_tokens": r.get("n_tokens"),
+            "source_path": r.get("source_path"),
         }
         chunk_nodes.append(chunk_node)
 

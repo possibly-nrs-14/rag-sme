@@ -9,6 +9,7 @@ from part_H_tools import (
     export_quiz_pdf, export_quiz_docx, export_quiz_pptx
 )
 
+from helpers import sanitize_for_injection
 from part_A_collection import collect_and_organize_documents
 from part_B_preprocessing import run_batch
 from part_DEF_agent_llm_capabilities import (
@@ -296,7 +297,7 @@ def create_app():
     @app.post("/lc/qa")
     def lc_qa():
         data = request.get_json(force=True) or {}
-        question = data.get("question", "")
+        question = sanitize_for_injection(data.get("question", ""))
         out = qa_chain.invoke({"question": question}) if qa_chain else {"error": "LangChain unavailable"}
         return jsonify(out)
 

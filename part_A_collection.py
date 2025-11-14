@@ -69,7 +69,6 @@ def main():
 
     for file_type, files in corpus.items():
         print(f"Found {len(files)} files for type: {file_type}")
-        # Print first 5 as a sample
         for f in files[:5]:
             print(f"  - {f}")
 

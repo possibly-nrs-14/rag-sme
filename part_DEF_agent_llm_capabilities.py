@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndB
 from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
 from operator import itemgetter
 import random
+import torch
 import os
 import json
 import random
@@ -17,7 +18,6 @@ from part_G_RAG import (
     EmbeddingIndex, ElasticsearchIndex, QueryEncoder, BGEReranker,
     SearchPipeline, load_elasticsearch_config
 )
-from transformers import BitsAndBytesConfig
 import logging
 
 logger = logging.getLogger(__name__)
