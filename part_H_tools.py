@@ -37,6 +37,7 @@ def export_qa_pdf(answer, sources, out_path):
     c.save()    
 
 def export_quiz_pdf(items, out_path):
+    import textwrap
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
@@ -45,22 +46,41 @@ def export_quiz_pdf(items, out_path):
     for it in items:
         q = it.get("question") or ""
         opts = it.get("options") or {}
-        c.setFont("Times-Bold", 12); c.drawString(72, y, f"{num}. {q[:90]}"); y -= 18
+        c.setFont("Times-Bold", 12)
+        
+        # Wrap question text
+        wrapped_q = textwrap.wrap(f"{num}. {q}", width=95)
+        for wrapped in wrapped_q:
+            c.drawString(72, y, wrapped)
+            y -= 18
+            if y < 120:
+                c.showPage()
+                y = h - 72
+        
         c.setFont("Times-Roman", 11)
         for k in ["A","B","C","D"]:
             v = opts.get(k, "")
-            c.drawString(90, y, f"{k}. {v[:90]}"); y -= 16
+            wrapped_opts = textwrap.wrap(f"{k}. {v}", width=90)
+            for wrapped in wrapped_opts:
+                c.drawString(90, y, wrapped)
+                y -= 16
+                if y < 120:
+                    c.showPage()
+                    y = h - 72
         y -= 6
-        if y < 120:
-            c.showPage(); y = h - 72
         num += 1
+    
     c.showPage()
-    c.setFont("Times-Bold", 12); c.drawString(72, h-72, "Answer Key"); y = h - 96
+    c.setFont("Times-Bold", 12)
+    c.drawString(72, h-72, "Answer Key")
+    y = h - 96
     c.setFont("Times-Roman", 11)
     for i, it in enumerate(items, 1):
-        c.drawString(72, y, f"{i}. {it.get('correct')}"); y -= 16
+        c.drawString(72, y, f"{i}. {it.get('correct')}")
+        y -= 16
         if y < 72:
-            c.showPage(); y = h - 72
+            c.showPage()
+            y = h - 72
     c.save()
 
 def export_qa_docx(answer, sources, out_path):
