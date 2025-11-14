@@ -318,7 +318,7 @@ def write_jsonl(path, rows):
         for r in rows:
             f.write(orjson.dumps(r, option=orjson.OPT_APPEND_NEWLINE))
 
-def process_single_document(filepath, granularities, overlap_tokens, artifacts_dir, embedder=None):
+def process_single_document(filepath, granularities, overlap_tokens, artifacts_dir, embedder=None, es_index=None):
     """Orchestrates the chunking of one document at multiple granularities."""
     fname = os.path.basename(filepath)
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"
@@ -385,9 +385,9 @@ def process_single_document(filepath, granularities, overlap_tokens, artifacts_d
                 tokens=g,
                 rows=rows,
                 out_dir=graph_dir,
-                # model="sentence-transformers/all-mpnet-base-v2",
                 model=DEFAULT_EMBED_MODEL,
-                embedder=embedder
+                embedder=embedder,
+                es_index=es_index
             )
             logging.info(f"Wrote embedding graph for {fname} at {g} tokens → {graph_dir}")
         except Exception as e:
@@ -409,7 +409,7 @@ def _json_lines(path):
                 if line:
                     yield json.loads(line)
 
-def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
+def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens, es_index=None):
     os.makedirs(artifacts_dir, exist_ok=True)
     log_path = setup_logging(os.path.join(artifacts_dir, "logs"))
     logging.info("=== SME Preprocessing & Chunking Pipeline (Multi-Format, LSH Enabled, Sanitized) ===")
@@ -433,7 +433,6 @@ def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
 
     # Create shared TextEmbedder for efficiency
     logging.info("Initializing shared TextEmbedder...")
-    # embedder = TextEmbedder(model="sentence-transformers/all-mpnet-base-v2")
     embedder = TextEmbedder(model=DEFAULT_EMBED_MODEL)
 
 
@@ -441,7 +440,7 @@ def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens):
     overall = {"files": 0, "clean_chars": 0, "errors": 0}
     for fp in tqdm(all_files, desc="Processing Documents", ncols=100):
         try:
-            stats = process_single_document(fp, granularities, overlap_tokens, artifacts_dir, embedder=embedder)
+            stats = process_single_document(fp, granularities, overlap_tokens, artifacts_dir, embedder=embedder, es_index=es_index)
             overall["files"] += 1
             overall["clean_chars"] += stats["clean_chars"]
         except Exception as e:

@@ -13,31 +13,84 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import BaseTool
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnableParallel
-from part_G_RAG import EmbeddingIndex, QueryEncoder, BGEReranker, SearchPipeline
+from part_G_RAG import (
+    EmbeddingIndex, ElasticsearchIndex, QueryEncoder, BGEReranker,
+    SearchPipeline, load_elasticsearch_config
+)
 from transformers import BitsAndBytesConfig
+import logging
+
+logger = logging.getLogger(__name__)
+
 bnb_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_type="bfloat16")
+
+
+def create_search_index(config_path=None, use_elasticsearch=True):
+    if use_elasticsearch:
+        try:
+            config = load_elasticsearch_config(config_path)
+            if config and config.get("enabled", True):
+                es_index = ElasticsearchIndex(config=config)
+
+                # Ensure index exists
+                es_index.create_index(dims=768, delete_if_exists=False)
+                logger.info("Using Elasticsearch backend for search")
+                return es_index
+        except Exception as e:
+            logger.warning(f"Elasticsearch initialization failed: {e}")
+            logger.info("Falling back to FAISS backend")
+
+    # Fallback to FAISS
+    logger.info("Using FAISS backend for search")
+    return EmbeddingIndex.from_files()
+
 class SearchDocsTool(BaseTool):
     name: str = "search_docs"
     description: str = "Semantic search over textbook chunks of the human nervous system corpus."
     k: int = 8
     candidates: int = 120
     device: Optional[str] = None
+    search_mode: str = "hybrid"  # "vector", "bm25", or "hybrid"
 
     _index: Any = PrivateAttr(default=None)
     _encoder: Any = PrivateAttr(default=None)
     _reranker: Any = PrivateAttr(default=None)
     _pipe: Any = PrivateAttr(default=None)
-    
 
-    def __init__(self, k=8, candidates=120, device=None):
+    def __init__(self, k=8, candidates=120, device=None, search_mode="hybrid",
+                 config_path=None, use_elasticsearch=True):
+        """
+        Initialize SearchDocsTool with either Elasticsearch or FAISS backend.
+
+        Args:
+            k: Number of results to return
+            candidates: Number of candidates for reranking
+            device: Device for models (cuda/cpu)
+            search_mode: "vector", "bm25", or "hybrid" (default: "hybrid")
+            config_path: Path to ES config file (optional)
+            use_elasticsearch: Try to use ES if True (default: True)
+        """
         super(SearchDocsTool, self).__init__()
-        self._index = EmbeddingIndex.from_files()
+        self.search_mode = search_mode
+
+        # Create index (ES or FAISS fallback)
+        self._index = create_search_index(config_path, use_elasticsearch)
+
+        # Create encoder and reranker
         self._encoder = QueryEncoder(device=device)
         self._reranker = BGEReranker(device=device)
+
+        # Create search pipeline
         self._pipe = SearchPipeline(self._index, self._encoder, self._reranker)
 
     def _run(self, query):
-        hits = self._pipe.search(query, top_k=self.k, candidates=self.candidates, use_reranker=True)
+        hits = self._pipe.search(
+            query,
+            top_k=self.k,
+            candidates=self.candidates,
+            use_reranker=True,
+            search_mode=self.search_mode
+        )
         out = []
         for h in hits:
             out.append({
@@ -47,6 +100,8 @@ class SearchDocsTool(BaseTool):
                 "granularity": h.get("granularity_tokens"),
                 "position": h.get("position"),
                 "score_vec": h.get("score_vec"),
+                "score_bm25": h.get("score_bm25"),
+                "score_hybrid": h.get("score_hybrid"),
                 "score_rerank": h.get("score_rerank"),
             })
         return out

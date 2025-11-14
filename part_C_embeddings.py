@@ -49,7 +49,7 @@ def _write_jsonl(path, rows):
             f.write(orjson.dumps(r, option=orjson.OPT_APPEND_NEWLINE))
 
 
-def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, embedder=None):
+def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, embedder=None, es_index=None):
     # Reuse shared embedder if provided, otherwise create new one
     if embedder is None:
         embedder = TextEmbedder(model=model)
@@ -79,17 +79,18 @@ def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, emb
         node_id = r["chunk_id"]
         vec = embs[i].tolist()
 
-        chunk_nodes.append({
+        chunk_node = {
             "node_id": node_id,
             "node_type": "chunk",
             "doc_id": doc_id,
             "parent_id": doc_node_id,
             "granularity_tokens": tokens,
             "position": r["position"],
-            "text": r.get("text", ""),          
+            "text": r.get("text", ""),
             "embedding": vec,
             "created_at": r["created_at"],
-        })
+        }
+        chunk_nodes.append(chunk_node)
 
         edges.append({"src_id": node_id, "dst_id": doc_node_id, "edge_type": "child_of"})
         if r.get("prev_chunk_id"):
@@ -103,7 +104,38 @@ def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, emb
     _write_jsonl(nodes_path, [doc_node] + chunk_nodes)
     _write_jsonl(edges_path, edges)
 
-    return {"nodes_path": nodes_path, "edges_path": edges_path}
+    result = {"nodes_path": nodes_path, "edges_path": edges_path}
+
+    # Index to Elasticsearch if index provided
+    if es_index is not None:
+        try:
+            es_chunks = []
+            for i, r in enumerate(rows):
+                es_chunk = {
+                    "chunk_id": r["chunk_id"],
+                    "doc_id": doc_id,
+                    "text": r.get("text", ""),
+                    "embedding": embs[i].tolist(),
+                    "source_basename": basename,
+                    "source_path": r.get("source_path"),
+                    "granularity_tokens": tokens,
+                    "position": r["position"],
+                    "n_tokens": r.get("n_tokens"),
+                    "parent_doc_hash": r.get("parent_doc_hash"),
+                    "created_at": r["created_at"]
+                }
+                es_chunks.append(es_chunk)
+
+            # Bulk index to Elasticsearch
+            success, failed = es_index.index_chunks_bulk(es_chunks)
+            result["es_indexed"] = success
+            result["es_failed"] = failed
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to index to Elasticsearch: {e}")
+            result["es_error"] = str(e)
+
+    return result
 
 
 def save_chunk_embeddings_only(rows, out_path, model=None):

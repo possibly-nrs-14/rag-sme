@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "host": "localhost",
+  "port": 9200,
+  "scheme": "http",
+  "index_name": "sme_chunks",
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "vector_dims": 768,
+  "similarity": "cosine",
+  "bulk_size": 500,
+  "request_timeout": 30,
+  "max_retries": 3
+}
