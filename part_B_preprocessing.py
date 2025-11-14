@@ -64,7 +64,7 @@ def count_tokens(s):
 
 # normalize_spaces is now imported from helpers.py
 
-def clean_pdf(path, threshold=10):
+def clean_pdf(path, threshold=MIN_WORDS_THRESHOLD):
     """Parses and cleans a single PDF, removing non-informative content."""
     doc = fitz.open(path)
     base = os.path.basename(path)
@@ -95,25 +95,26 @@ def clean_pdf(path, threshold=10):
             ordered = left_blocks + right_blocks
             kept_lines = []
             for j, (_, _, txt) in enumerate(ordered):
-                plain = normalize_spaces(txt).lower()  # Lowercasing
+                raw = normalize_spaces(txt).lower()
+                raw_lower = raw.lower()
                 
                 # # --- PRIMARY SANITIZATION ---
                 # # Sanitize each text block *before* logic is applied
                 # plain = sanitize_for_injection(plain)
                 # ----------------------------
 
-                n_words = len(plain.split())
+                n_words = len(raw_lower.split())
                 
-                if not book_start and ("c h a p t e r" in plain or "gross anatomy of the brain" in plain or plain in ['chapter', 'april2013', 'brain–machine interfaces']): #changed this
+                if not book_start and any(pat in raw_lower for pat in CHAPTER_START_PATTERNS):
                     book_start = True
-                if plain in ["index", "i n d e x"] and (j == 0 or len(doc) - i <= 20):
+                if raw_lower in CHAPTER_END_PATTERNS and (j == 0 or len(doc) - i <= 20):
                     book_end = True
                     break
                 if not book_start:
                     continue
                 if n_words < threshold:  # Removal of non-informative content
                     continue
-                kept_lines.append(plain)
+                kept_lines.append(raw)
 
             page_texts.append("\n".join(kept_lines))
         except Exception as e:
@@ -138,7 +139,7 @@ def load_plain_text_file(path):
         logging.exception(f"Failed to read text file {path}: {e}")
         return ""
     text = normalize_spaces(raw)
-    return sanitize_for_injection(text)
+    return text
 
 def load_docx(path):
     """Extract text from DOCX, one paragraph per line."""
@@ -149,7 +150,7 @@ def load_docx(path):
         d = docx.Document(path)
         paras = [normalize_spaces(p.text) for p in d.paragraphs if p.text.strip()]
         text = "\n\n".join(paras)
-        return sanitize_for_injection(text)
+        return text
     except Exception as e:
         logging.exception(f"Failed to parse DOCX {path}: {e}")
         return ""
@@ -167,7 +168,7 @@ def load_pptx(path):
                 if hasattr(shape, "text") and shape.text:
                     texts.append(normalize_spaces(shape.text))
         text = "\n\n".join(t for t in texts if t)
-        return sanitize_for_injection(text)
+        return text
     except Exception as e:
         logging.exception(f"Failed to parse PPTX {path}: {e}")
         return ""
@@ -455,6 +456,10 @@ def run_batch(input_dir, artifacts_dir, granularities, overlap_tokens, es_index=
     chunks_dir = os.path.join(artifacts_dir, "chunks")
 
     for g in granularities:
+        if g != max(granularities):
+            logging.info(f"Skipping batch dedup for {g} tokens (we only do max granularity).")
+            continue
+
         try:
             logging.info(f"Batch dedup for granularity {g} tokens...")
 
