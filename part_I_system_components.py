@@ -3,7 +3,7 @@ import os
 import time
 import json
 from contextlib import contextmanager
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from part_H_tools import (
     export_qa_pdf, export_qa_docx,
     export_quiz_pdf, export_quiz_docx, export_quiz_pptx
@@ -16,8 +16,7 @@ from part_DEF_agent_llm_capabilities import (
     SearchDocsTool,
     load_medgemma_llm_lc,
     build_lc_qa_chain,
-    build_lc_quiz_chain,
-    create_search_index,
+    build_lc_quiz_chain
 )
 from part_G_RAG import load_elasticsearch_config, ElasticsearchIndex
 
@@ -107,7 +106,10 @@ def run_ingestion():
 INGESTION_STATUS = run_ingestion()
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="static", template_folder="templates")
+    @app.get("/")
+    def index():
+        return render_template("index.html")
     @app.get("/health")
     def health():
         """Health check with search backend status."""

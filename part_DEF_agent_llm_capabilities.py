@@ -1,7 +1,7 @@
 
 from functools import partial
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
-from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
+from langchain_huggingface import HuggingFacePipeline
 from operator import itemgetter
 import random
 import torch
