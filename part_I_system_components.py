@@ -57,7 +57,7 @@ def batch_ingestion_pipeline(
         if config and config.get("enabled", True):
             es_index = ElasticsearchIndex(config=config)
             # Do NOT delete existing index by default.
-            es_index.create_index(dims=768, delete_if_exists=False)
+            es_index.create_index(delete_if_exists=False)
     except Exception as e:
         # Keep ingestion working even if ES is down
         print(f"[batch_ingestion_pipeline] Elasticsearch unavailable, continuing without ES: {e}")
@@ -220,7 +220,10 @@ def create_app():
 
             payload = request.get_json(silent=True) or {}
             delete_existing = payload.get("delete_existing", False)
-            dims = int(payload.get("dims", 768))
+
+            # Default: use config["vector_dims"], allow explicit override in payload
+            default_dims = int(config.get("vector_dims", 768))
+            dims = int(payload.get("dims", default_dims))
 
             es_index = ElasticsearchIndex(config=config)
             es_index.create_index(dims=dims, delete_if_exists=delete_existing)
@@ -246,9 +249,10 @@ def create_app():
             from part_G_RAG import _json_lines
 
             es_index = ElasticsearchIndex(config=config)
-            es_index.create_index(dims=768, delete_if_exists=False)
+            default_dims = int(config.get("vector_dims", 768))
+            es_index.create_index(dims=default_dims, delete_if_exists=False)
 
-            # Find all node files
+            # Find all node files   
             node_files = glob.glob("./artifacts/graph/*__nodes.jsonl")
             if not node_files:
                 return jsonify({"error": "No graph node files found"}), 404

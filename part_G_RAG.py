@@ -234,14 +234,10 @@ class ElasticsearchIndex:
         except Exception as e:
             raise RuntimeError(f"Cannot connect to Elasticsearch at {es_url}: {e}")
 
-    def create_index(self, dims=768, delete_if_exists=False):
-        """
-        Create Elasticsearch index with mapping for dense vectors and BM25.
+    def create_index(self, dims=None, delete_if_exists=False):
+        if dims is None:
+            dims = int(self.config.get("vector_dims", 768))
 
-        Args:
-            dims: Dimension of embedding vectors
-            delete_if_exists: If True, delete existing index before creating
-        """
         if delete_if_exists and self.es.indices.exists(index=self.index_name):
             self.es.indices.delete(index=self.index_name)
             logger.info(f"Deleted existing index: {self.index_name}")

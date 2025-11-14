@@ -123,7 +123,7 @@ def parse_quiz_json(text):
 
 
 
-def load_medgemma_llm_lc(max_new_tokens=512, temperature=0.2, bnb_config=bnb_config, model_name="google/medgemma-4b-it"):
+def load_medgemma_llm_lc(max_new_tokens=256, temperature=0.05, bnb_config=bnb_config, model_name="google/medgemma-4b-it"):
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_name, torch_dtype="auto", device_map="auto", trust_remote_code=True, quantization_config=bnb_config
@@ -140,8 +140,23 @@ def load_medgemma_llm_lc(max_new_tokens=512, temperature=0.2, bnb_config=bnb_con
     return HuggingFacePipeline(pipeline=gen)
 
 def lc_templates():
+    # qa = PromptTemplate.from_template(
+    #     "Answer ONLY from the provided context. If missing, say 'Insufficient context.'\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
+    # )
     qa = PromptTemplate.from_template(
-        "Answer ONLY from the provided context. If missing, say 'Insufficient context.'\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
+        "You are a neuroanatomy assistant.\n"
+        "Use ONLY the information in the Context to answer the Question.\n"
+        "You must output exactly ONE of the following:\n"
+        "1) A single, self-contained answer in at most 3 sentences of plain English, "
+        "IF the Context clearly contains the answer.\n"
+        "2) Exactly the phrase: Insufficient context. (nothing else), "
+        "IF the Context does NOT contain the answer.\n"
+        "You MUST NOT output both an answer AND 'Insufficient context.'\n"
+        "Do NOT write code, pseudo-code, or functions.\n"
+        "Do NOT include backticks or markdown fences in your reply.\n\n"
+        "Context:\n{context}\n\n"
+        "Question: {question}\n"
+        "Answer:"
     )
     quiz = PromptTemplate.from_template(
         "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
@@ -162,12 +177,28 @@ def build_lc_qa_chain(llm, search_tool):
     )
    
     qa_t, _ = lc_templates()
+    def dedupe_lines(text: str) -> str:
+        seen = set()
+        out_lines = []
+        for line in text.splitlines():
+            l = line.strip()
+            if not l:
+                continue
+            if l in seen:
+                continue
+            seen.add(l)
+            out_lines.append(line)
+        return "\n".join(out_lines)
+
     compose = RunnableLambda(lambda x: {
         "question": x["question"],
         "context": add_context(x["docs"]),
         "docs": x["docs"]
     })
-    chain = fan | compose | {"answer": (qa_t | llm | StrOutputParser()), "sources": (RunnableLambda(lambda y: y["docs"]))}
+    chain = fan | compose | {
+        "answer": (qa_t | llm | StrOutputParser() | RunnableLambda(dedupe_lines)),
+        "sources": RunnableLambda(lambda y: y["docs"]),
+    }
     return chain
 
 

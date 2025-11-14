@@ -183,3 +183,5 @@ python part_I_system_components.py
 # Refs
 https://huggingface.co/FremyCompany/BioLORD-2023
 Domain specific model for embeddings (better than mpnet in all benchmarks)
+
+https://huggingface.co/google/medgemma-4b-it
