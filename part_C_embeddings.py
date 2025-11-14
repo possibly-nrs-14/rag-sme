@@ -86,6 +86,7 @@ def save_document_graph(doc_id, basename, tokens, rows, out_dir, model=None, emb
             "parent_id": doc_node_id,
             "granularity_tokens": tokens,
             "position": r["position"],
+            "text": r.get("text", ""),          
             "embedding": vec,
             "created_at": r["created_at"],
         })
