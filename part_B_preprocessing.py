@@ -97,9 +97,9 @@ def clean_pdf(path, threshold=10):
             for j, (_, _, txt) in enumerate(ordered):
                 plain = normalize_spaces(txt).lower()  # Lowercasing
                 
-                # --- PRIMARY SANITIZATION ---
-                # Sanitize each text block *before* logic is applied
-                plain = sanitize_for_injection(plain)
+                # # --- PRIMARY SANITIZATION ---
+                # # Sanitize each text block *before* logic is applied
+                # plain = sanitize_for_injection(plain)
                 # ----------------------------
 
                 n_words = len(plain.split())
