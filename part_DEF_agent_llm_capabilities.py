@@ -1,4 +1,4 @@
-
+# part_DEF_agent_llm_capabilities.py
 from functools import partial
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig
 from langchain_huggingface import HuggingFacePipeline
@@ -209,7 +209,3 @@ def build_lc_quiz_chain(llm, search_tool, n_questions=5):
         n_questions=n_questions,
     )
     return RunnableLambda(bound)
-
-
-
-

@@ -39,7 +39,8 @@ def batch_ingestion_pipeline(
     artifacts_dir="./artifacts",
     granularities=(2048, 512, 128),
     overlap_tokens=64,
-    write_metadata=True
+    write_metadata=True,
+    es_index=None
 ):
     os.makedirs(artifacts_dir, exist_ok=True)
     # Writing Metadata from Part A
@@ -67,7 +68,7 @@ def batch_ingestion_pipeline(
         artifacts_dir=artifacts_dir,
         granularities=list(granularities),
         overlap_tokens=int(overlap_tokens),
-        
+        es_index=es_index
     )
 
     return {"started": True, "artifacts_dir": artifacts_dir}
