@@ -185,3 +185,8 @@ https://huggingface.co/FremyCompany/BioLORD-2023
 Domain specific model for embeddings (better than mpnet in all benchmarks)
 
 https://huggingface.co/google/medgemma-4b-it
+
+docker run -d --name elasticsearch -p 9200:9200 ` 
+-e "discovery.type=single-node" `
+-e "xpack.security.enabled=false" `
+elasticsearch:8.11.0
