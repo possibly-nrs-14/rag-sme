@@ -1,12 +1,17 @@
 # part_H_tools.py
 import os
+import logging
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from docx import Document
 from pptx import Presentation
-
+import textwrap
+from langchain_core.tools import BaseTool
+from typing import Type, Dict, Any, Optional
+from pydantic.v1 import BaseModel, Field
+import time
+logger = logging.getLogger(__name__)
 def export_qa_pdf(answer, sources, out_path):
-    import textwrap
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
@@ -37,7 +42,6 @@ def export_qa_pdf(answer, sources, out_path):
     c.save()    
 
 def export_quiz_pdf(items, out_path):
-    import textwrap
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
@@ -127,3 +131,94 @@ def export_quiz_pptx(items, out_path):
     for i, it in enumerate(items, 1):
         body.add_paragraph().text = f"{i}. {it.get('correct')}"
     prs.save(out_path)
+
+class EmailPayload(BaseModel):
+    recipient: str = Field(description="The email address of the recipient.")
+    subject: str = Field(description="The subject line for the email.")
+    body: str = Field(description="The body content of the email.")
+    file_path: Optional[str] = Field(description="Optional path to a file to be sent as an attachment.")
+
+class EmailTool(BaseTool):
+    """
+    A tool to send an email. 
+    Per project spec, this is a placeholder and will log instead of sending.
+    """
+    name: str = "send_email"
+    description: str = "Sends an email with an optional attachment. Use this to send reports or quizzes to users."
+    args_schema: Type[BaseModel] = EmailPayload
+
+    def _run(self, recipient: str, subject: str, body: str, file_path: str = None) -> str:
+        # In a real system, this would integrate with SMTP or an API (e.g., SendGrid).
+        # For this project, we just log the action.
+        log_msg = f"Email Tool: \n  To: {recipient}\n  Subject: {subject}\n  Body: {body[:50]}...\n  Attachment: {file_path}"
+        logger.info(log_msg)
+        print(log_msg)
+        
+        if file_path and not os.path.exists(file_path):
+            return f"Error: Could not send email, attachment not found at {file_path}"
+        
+        return f"Email successfully queued for {recipient} with subject '{subject}'."
+
+    async def _arun(self, *args, **kwargs):
+        # This tool does not support async
+        return self._run(*args, **kwargs)
+
+
+class ExportPayload(BaseModel):
+    export_type: str = Field(description="The type of export, e.g., 'qa' or 'quiz'.")
+    file_format: str = Field(description="The file format, e.g., 'pdf', 'docx', or 'pptx'.")
+    data: Dict[str, Any] = Field(description="The JSON data to be exported. For 'qa', this is {'answer': ..., 'sources': [...]}. For 'quiz', this is {'items': [...]}.")
+
+class ExportTool(BaseTool):
+    """
+    A tool to generate and export documents (PDF, DOCX, PPTX).
+    This fulfills the requirement for Document Generation.
+    """
+    name: str = "export_document"
+    description: str = "Generates and exports a document (PDF, DOCX, PPTX) from QA or Quiz data. Returns the path to the saved file."
+    args_schema: Type[BaseModel] = ExportPayload
+
+    def _run(self, export_type: str, file_format: str, data: Dict[str, Any]) -> str:
+        exports_dir = "./exports"
+        os.makedirs(exports_dir, exist_ok=True)
+        timestamp = int(time.time())
+        
+        try:
+            if export_type == "qa":
+                answer = data.get("answer", "")
+                sources = data.get("sources", [])
+                if file_format == "pdf":
+                    path = os.path.join(exports_dir, f"qa_export_{timestamp}.pdf")
+                    export_qa_pdf(answer, sources, path)
+                    return path
+                elif file_format == "docx":
+                    path = os.path.join(exports_dir, f"qa_export_{timestamp}.docx")
+                    export_qa_docx(answer, sources, path)
+                    return path
+            
+            elif export_type == "quiz":
+                items = data.get("items", [])
+                if not items:
+                    return "Error: No quiz items provided in data."
+                if file_format == "pdf":
+                    path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pdf")
+                    export_quiz_pdf(items, path)
+                    return path
+                elif file_format == "docx":
+                    path = os.path.join(exports_dir, f"quiz_export_{timestamp}.docx")
+                    export_quiz_docx(items, path)
+                    return path
+                elif file_format == "pptx":
+                    path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pptx")
+                    export_quiz_pptx(items, path)
+                    return path
+                    
+            return f"Error: Invalid export_type '{export_type}' or file_format '{file_format}'."
+        
+        except Exception as e:
+            logger.error(f"ExportTool failed: {e}", exc_info=True)
+            return f"Error: Failed to export document. {e}"
+
+    async def _arun(self, *args, **kwargs):
+        # This tool does not support async
+        return self._run(*args, **kwargs)
