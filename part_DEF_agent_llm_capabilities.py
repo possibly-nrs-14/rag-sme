@@ -123,7 +123,7 @@ def parse_quiz_json(text):
 
 
 
-def load_medgemma_llm_lc(max_new_tokens=256, temperature=0.05, bnb_config=bnb_config, model_name="google/medgemma-4b-it"):
+def load_llm_lc(max_new_tokens=256, temperature=0.05, bnb_config=bnb_config, model_name="google/medgemma-4b-it"):
     tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_name, torch_dtype="auto", device_map="auto", trust_remote_code=True, quantization_config=bnb_config

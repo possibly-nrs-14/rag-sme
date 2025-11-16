@@ -14,7 +14,7 @@ from part_A_collection import collect_and_organize_documents
 from part_B_preprocessing import run_batch
 from part_DEF_agent_llm_capabilities import (
     SearchDocsTool,
-    load_medgemma_llm_lc,
+    load_llm_lc,
     build_lc_qa_chain,
     build_lc_quiz_chain
 )
@@ -298,7 +298,7 @@ def create_app():
     use_es = env_bool("USE_ELASTICSEARCH", True)
     search_tool = SearchDocsTool(k=8, candidates=120, device=None,
                                   search_mode=search_mode, use_elasticsearch=use_es)
-    llm = load_medgemma_llm_lc()
+    llm = load_llm_lc()
     qa_chain = build_lc_qa_chain(llm, search_tool) if search_tool else None
 
     @app.post("/lc/qa")
