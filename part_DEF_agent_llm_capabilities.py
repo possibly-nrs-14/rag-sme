@@ -122,62 +122,98 @@ def parse_quiz_json(text):
         return None
 
 
+class LLMAgent():
+    def __init__(self, model_name='google/medgemma-4b-it', max_new_tokens=256, temperature=0.05):
+        self.model_name = model_name
+        self.max_new_tokens = max_new_tokens
+        self.temperature = temperature
+    def load_llm_lc(self):
+        tok = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_name, torch_dtype="auto", device_map="auto", trust_remote_code=True, quantization_config=bnb_config
+        )
+        gen = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tok,
+            max_new_tokens=self.max_new_tokens,
+            do_sample=self.temperature > 0,
+            temperature=self.temperature,
+            return_full_text=False,
+        )
+        return HuggingFacePipeline(pipeline=gen)
 
-def load_llm_lc(max_new_tokens=256, temperature=0.05, bnb_config=bnb_config, model_name="google/medgemma-4b-it"):
-    tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype="auto", device_map="auto", trust_remote_code=True, quantization_config=bnb_config
-    )
-    gen = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tok,
-        max_new_tokens=max_new_tokens,
-        do_sample=temperature > 0,
-        temperature=temperature,
-        return_full_text=False,
-    )
-    return HuggingFacePipeline(pipeline=gen)
+    def lc_templates(self):
+        qa, quiz = None, None
+        if self.model_name == 'google/medgemma-4b-it':
+            qa = PromptTemplate.from_template(
+                "You are a neuroanatomy assistant.\n"
+                "Use ONLY the information in the Context to answer the Question.\n"
+                "You must output exactly ONE of the following:\n"
+                "1) A single, self-contained answer in at most 3 sentences of plain English, "
+                "IF the Context clearly contains the answer.\n"
+                "2) Exactly the phrase: Insufficient context. (nothing else), "
+                "IF the Context does NOT contain the answer.\n"
+                "You MUST NOT output both an answer AND 'Insufficient context.'\n"
+                "Do NOT write code, pseudo-code, or functions.\n"
+                "Do NOT include backticks or markdown fences in your reply.\n\n"
+                "Context:\n{context}\n\n"
+                "Question: {question}\n"
+                "Answer:"
+            )
+            quiz = PromptTemplate.from_template(
+                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+            )
+        elif self.model_name == 'Intelligent-Internet/II-Medical-8B':
+            qa = PromptTemplate.from_template(
+                "<|system|>\n"
+                "You are an expert neuroanatomy assistant. Your task is to answer the user's question based *only* on the provided context.\n"
+                "Follow these steps:\n"
+                "1.  Carefully read the Question and the Context.\n"
+                "2.  Reason step-by-step to determine if the Context contains the information to answer the Question.\n"
+                "3.  If the answer is in the context, formulate a concise, one-paragraph answer.\n"
+                "4.  If the answer is NOT in the context, your final answer MUST be exactly: Insufficient context.\n"
+                "5.  Provide your reasoning and final answer in the specified format.\n\n"
+                "<|user|>\n"
+                "**Context:**\n"
+                "{context}\n\n"
+                "**Question:**\n"
+                "{question}\n\n"
+                "<|assistant|>\n"
+                
+                "[Your final answer. This should be a concise paragraph OR the exact phrase 'Insufficient context.']"
+            )
+            quiz = PromptTemplate.from_template(
+                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+            )
+        elif self.model_name == 'microsoft/MediPhi':
+            qa = PromptTemplate.from_template(
+                    "<|system|>\n"
+                    "You are an expert clinical QA assistant.\n"
+                    "You must answer the user's question based *only* on the provided context.\n"
+                    "- If the context contains the answer, provide a concise, single-paragraph answer.\n"
+                    "- If the context does NOT contain the answer, you MUST respond with *only* the exact phrase: Insufficient context.\n"
+                    "<|end|>\n"
+                    "<|user|>\n"
+                    "Context:\n"
+                    "{context}\n\n"
+                    "Question: {question}\n"
+                    "<|end|>\n"
+                    "<|assistant|>"
+                )
+            
+            quiz = PromptTemplate.from_template(
+                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+            )
+        return qa, quiz
 
-def lc_templates():
-    # qa = PromptTemplate.from_template(
-    #     "Answer ONLY from the provided context. If missing, say 'Insufficient context.'\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
-    # )
-    qa = PromptTemplate.from_template(
-        "You are a neuroanatomy assistant.\n"
-        "Use ONLY the information in the Context to answer the Question.\n"
-        "You must output exactly ONE of the following:\n"
-        "1) A single, self-contained answer in at most 3 sentences of plain English, "
-        "IF the Context clearly contains the answer.\n"
-        "2) Exactly the phrase: Insufficient context. (nothing else), "
-        "IF the Context does NOT contain the answer.\n"
-        "You MUST NOT output both an answer AND 'Insufficient context.'\n"
-        "Do NOT write code, pseudo-code, or functions.\n"
-        "Do NOT include backticks or markdown fences in your reply.\n\n"
-        "Context:\n{context}\n\n"
-        "Question: {question}\n"
-        "Answer:"
-    )
-    quiz = PromptTemplate.from_template(
-        "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
-    )
-    return qa, quiz
-
-def add_context(docs, k=3):
-    chunks = []
-    for d in docs[:k]:
-        t = (d.get("text") or "")
-        chunks.append(t)
-    return "\n\n---\n\n".join(chunks)
-
-def build_lc_qa_chain(llm, search_tool):
-    fan = RunnableParallel(
-        question=itemgetter("question"),
-        docs=RunnableLambda(lambda x: search_tool.run(x["question"])),
-    )
-   
-    qa_t, _ = lc_templates()
-    def dedupe_lines(text: str) -> str:
+    def add_context(self, docs, k=3):
+        chunks = []
+        for d in docs[:k]:
+            t = (d.get("text") or "")
+            chunks.append(t)
+        return "\n\n---\n\n".join(chunks)
+    def dedupe_lines(self, text):
         seen = set()
         out_lines = []
         for line in text.splitlines():
@@ -189,54 +225,61 @@ def build_lc_qa_chain(llm, search_tool):
             seen.add(l)
             out_lines.append(line)
         return "\n".join(out_lines)
+    def build_lc_qa_chain(self, llm, search_tool):
+        fan = RunnableParallel(
+            question=itemgetter("question"),
+            docs=RunnableLambda(lambda x: search_tool.run(x["question"])),
+        )
+    
+        qa_t, _ = self.lc_templates()
 
-    compose = RunnableLambda(lambda x: {
-        "question": x["question"],
-        "context": add_context(x["docs"]),
-        "docs": x["docs"]
-    })
-    chain = fan | compose | {
-        "answer": (qa_t | llm | StrOutputParser() | RunnableLambda(dedupe_lines)),
-        "sources": RunnableLambda(lambda y: y["docs"]),
-    }
-    return chain
+        compose = RunnableLambda(lambda x: {
+            "question": x["question"],
+            "context": self.add_context(x["docs"]),
+            "docs": x["docs"]
+        })
+        chain = fan | compose | {
+            "answer": (qa_t | llm | StrOutputParser() | RunnableLambda(self.dedupe_lines)),
+            "sources": RunnableLambda(lambda y: y["docs"]),
+        }
+        return chain
 
 
-def generate_single_mcq_from_context(context_text, llm, quiz_prompt):
-    raw = (quiz_prompt | llm | StrOutputParser()).invoke({"context": context_text})
-    return parse_quiz_json(raw)
+    def generate_single_mcq_from_context(self, context_text, llm, quiz_prompt):
+        raw = (quiz_prompt | llm | StrOutputParser()).invoke({"context": context_text})
+        return parse_quiz_json(raw)
 
-def build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=5):
-    docs = search_tool.run(topic)
-    shuffled = list(docs)
-    random.shuffle(shuffled)
-    items = []
-    for d in shuffled:
-        if len(items) >= n_questions:
-            break
-        context_text = (d.get("text") or "")
-        parsed = generate_single_mcq_from_context(context_text, llm, quiz_prompt)
-        if parsed:
-            parsed["source"] = {
-                "book": d.get("book"),
-                "chunk_id": d.get("chunk_id"),
-                "granularity": d.get("granularity"),
-                "position": d.get("position"),
-            }
-            items.append(parsed)
-    return {"items": items}
+    def build_quiz_items_from_topic(self, topic, search_tool, llm, quiz_prompt, n_questions=5):
+        docs = search_tool.run(topic)
+        shuffled = list(docs)
+        random.shuffle(shuffled)
+        items = []
+        for d in shuffled:
+            if len(items) >= n_questions:
+                break
+            context_text = (d.get("text") or "")
+            parsed = self.generate_single_mcq_from_context(context_text, llm, quiz_prompt)
+            if parsed:
+                parsed["source"] = {
+                    "book": d.get("book"),
+                    "chunk_id": d.get("chunk_id"),
+                    "granularity": d.get("granularity"),
+                    "position": d.get("position"),
+                }
+                items.append(parsed)
+        return {"items": items}
 
-def generate_quiz_payload(payload, search_tool, llm, quiz_prompt, n_questions):
-    topic = payload["topic"]
-    return build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
+    def generate_quiz_payload(self, payload, search_tool, llm, quiz_prompt, n_questions):
+        topic = payload["topic"]
+        return self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
 
-def build_lc_quiz_chain(llm, search_tool, n_questions=5):
-    quiz_prompt = lc_templates()[1]
-    bound = partial(
-        generate_quiz_payload,
-        search_tool=search_tool,
-        llm=llm,
-        quiz_prompt=quiz_prompt,
-        n_questions=n_questions,
-    )
-    return RunnableLambda(bound)
+    def build_lc_quiz_chain(self, llm, search_tool, n_questions=5):
+        quiz_prompt = self.lc_templates()[1]
+        bound = partial(
+            self.generate_quiz_payload,
+            search_tool=search_tool,
+            llm=llm,
+            quiz_prompt=quiz_prompt,
+            n_questions=n_questions,
+        )
+        return RunnableLambda(bound)
