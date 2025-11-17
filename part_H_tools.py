@@ -11,41 +11,58 @@ from typing import Type, Dict, Any, Optional
 from pydantic.v1 import BaseModel, Field
 import time
 logger = logging.getLogger(__name__)
-def export_qa_pdf(answer, sources, out_path):
+
+def export_qa_pdf(question, answer, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
     y = h - 72
     c.setFont("Times-Roman", 14)
-    for line in (answer or "").split("\n"):
-        wrapped_lines = textwrap.wrap(line, width=95)
-        for wrapped in wrapped_lines:
-            c.drawString(72, y, wrapped)
-            y -= 18
-            if y < 72:
-                c.showPage()
-                y = h - 72
+    c.drawString(72, y, "Question:")
+    y -= 24
+    c.setFont("Times-Roman", 12)
+    for line in textwrap.wrap(question, width=95):
+        c.drawString(72, y, line)
+        y -= 18
+        if y < 120:
+            c.showPage()
+            y = h - 72
     y -= 12
-    c.setFont("Times-Bold", 12)
-    c.drawString(72, y, "Sources:")
-    y -= 18
-    c.setFont("Times-Roman", 10)
-    for s in sources or []:
-        line = f"- {s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}"
-        wrapped_lines = textwrap.wrap(line, width=95)
-        for wrapped in wrapped_lines:
-            c.drawString(72, y, wrapped)
-            y -= 14
-            if y < 72:
-                c.showPage()
-                y = h - 72
-    c.save()    
+    c.setFont("Times-Roman", 14)
+    c.drawString(72, y, "Answer:")  
+    y -= 24
+    c.setFont("Times-Roman", 12)
+    for line in textwrap.wrap(answer, width=95):
+        c.drawString(72, y, line)
+        y -= 18
+        if y < 120:
+            c.showPage()
+            y = h - 72
+    y -= 12
+    c.setFont("Times-Roman", 14)
+    c.drawString(72, y, "Sources:")  
+    y -= 24
+    c.setFont("Times-Roman", 12)
+    for s in sources:
+        c.drawString(72, y, f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
+        y -= 18
+        if y < 120:
+            c.showPage()
+            y = h - 72
+    c.save()
 
-def export_quiz_pdf(items, sources, out_path):
+def export_quiz_pdf(topic, items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
     y = h - 72
+    
+    # Add topic at the top if provided
+    if topic:
+        c.setFont("Times-Bold", 16)
+        c.drawString(72, y, f"Quiz on {topic}")
+        y -= 36
+    
     num = 1
     for it in items:
         q = it.get("question") or ""
@@ -85,11 +102,30 @@ def export_quiz_pdf(items, sources, out_path):
         if y < 72:
             c.showPage()
             y = h - 72
+    
+    # Add sources section
+    y -= 12
+    if y < 120:
+        c.showPage()
+        y = h - 72
+    c.setFont("Times-Bold", 12)
+    c.drawString(72, y, "Sources")
+    y -= 24
+    c.setFont("Times-Roman", 11)
+    for s in sources or []:
+        c.drawString(72, y, f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
+        y -= 16
+        if y < 72:
+            c.showPage()
+            y = h - 72
+    
     c.save()
 
-def export_qa_docx(answer, sources, out_path):
+def export_qa_docx(question, answer, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     d = Document()
+    d.add_heading("Question", level=1)
+    d.add_paragraph(question)
     d.add_heading("Answer", level=1)
     for line in (answer or "").split("\n"):
         d.add_paragraph(line)
@@ -98,10 +134,14 @@ def export_qa_docx(answer, sources, out_path):
         d.add_paragraph(f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
     d.save(out_path)
 
-def export_quiz_docx(items, sources, out_path):
+def export_quiz_docx(topic, items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     d = Document()
-    d.add_heading("Quiz", level=1)
+    if topic:
+        d.add_heading(f"Quiz on {topic}", level=1)
+    else:
+        d.add_heading("Quiz", level=1)
+
     for i, it in enumerate(items, 1):
         d.add_paragraph(f"{i}. {it.get('question')}")
         opts = it.get("options") or {}
@@ -116,9 +156,18 @@ def export_quiz_docx(items, sources, out_path):
         d.add_paragraph(f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
     d.save(out_path)
 
-def export_quiz_pptx(items, sources, out_path):
+def export_quiz_pptx(topic, items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     prs = Presentation()
+
+    if topic: 
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        slide.shapes.title.text = f"Quiz on {topic}"
+        # if slide.placeholders.len > 1:
+        if len(slide.placeholders) > 1:
+            slide.placeholders[1].text = ""
+
     for i, it in enumerate(items, 1):
         slide = prs.slides.add_slide(prs.slide_layouts[1])
         slide.shapes.title.text = f"Q{i}: {it.get('question')}"
@@ -133,6 +182,15 @@ def export_quiz_pptx(items, sources, out_path):
     body.clear()
     for i, it in enumerate(items, 1):
         body.add_paragraph().text = f"{i}. {it.get('correct')}"
+    
+    # Add sources slide
+    slide = prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text = "Sources"
+    body = slide.shapes.placeholders[1].text_frame
+    body.clear()
+    for s in sources or []:
+        body.add_paragraph().text = f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}"
+    
     prs.save(out_path)
 
 class EmailPayload(BaseModel):
@@ -188,33 +246,35 @@ class ExportTool(BaseTool):
         
         try:
             if export_type == "qa":
+                question = data.get("question", "")
                 answer = data.get("answer", "")
                 sources = data.get("sources", [])
                 if file_format == "pdf":
                     path = os.path.join(exports_dir, f"qa_export_{timestamp}.pdf")
-                    export_qa_pdf(answer, sources, path)
+                    export_qa_pdf(question, answer, sources, path)
                     return path
                 elif file_format == "docx":
                     path = os.path.join(exports_dir, f"qa_export_{timestamp}.docx")
-                    export_qa_docx(answer, sources, path)
+                    export_qa_docx(question, answer, sources, path)
                     return path
             
             elif export_type == "quiz":
+                topic = data.get("topic", "")
                 items = data.get("items", [])
                 sources = data.get("sources", [])                
                 if not items:
                     return "Error: No quiz items provided in data."
                 if file_format == "pdf":
                     path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pdf")
-                    export_quiz_pdf(items, path)
+                    export_quiz_pdf(topic, items, sources, path)
                     return path
                 elif file_format == "docx":
                     path = os.path.join(exports_dir, f"quiz_export_{timestamp}.docx")
-                    export_quiz_docx(items, path)
+                    export_quiz_docx(topic, items, sources, path)
                     return path
                 elif file_format == "pptx":
                     path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pptx")
-                    export_quiz_pptx(items, sources, path)
+                    export_quiz_pptx(topic, items, sources, path)
                     return path
                     
             return f"Error: Invalid export_type '{export_type}' or file_format '{file_format}'."

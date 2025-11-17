@@ -231,7 +231,7 @@ window.addEventListener("DOMContentLoaded", () => {
         // --- Feedback visibility line removed ---
         try {
           const res = await postJSON("/lc/qa", {question: q});
-          lastQa = res; 
+          lastQa = { question: q, ...res };
           qaAnswer.textContent = res.answer || "";
           renderSources(qaSources, res.sources || []);
           qaExport.disabled = !(res.answer && res.sources);
@@ -251,6 +251,7 @@ window.addEventListener("DOMContentLoaded", () => {
         qaExport.disabled = true;
         try {
           const res = await postJSON("/export/qa", {
+            question: lastQa.question || "",
             answer: lastQa.answer || "",
             sources: lastQa.sources || []
           });
@@ -274,7 +275,7 @@ window.addEventListener("DOMContentLoaded", () => {
         if (quizSources) quizSources.innerHTML = "";                 
         try {
           const res = await postJSON("/lc/quiz", {topic, n});
-          lastQuiz = res;
+          lastQuiz = { topic, ...res };
           const items = (res.items || []);
           let text = "";
           items.forEach((it, idx) => {

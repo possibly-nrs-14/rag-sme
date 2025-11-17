@@ -135,25 +135,28 @@ def create_app():
             status["es_config_found"] = False
 
         return jsonify(status)
+    
     @app.post("/export/qa")
     def export_qa_route():
         data = request.get_json(force=True) or {}
+        question = data.get("question", "")
         answer = data.get("answer", "")
         sources = data.get("sources", [])
         os.makedirs("./exports", exist_ok=True)
-        export_qa_pdf(answer, sources, "./exports/qa.pdf")
-        export_qa_docx(answer, sources, "./exports/qa.docx")
+        export_qa_pdf(question, answer, sources, "./exports/qa.pdf")
+        export_qa_docx(question, answer, sources, "./exports/qa.docx")
         return jsonify({"ok": True, "paths": ["./exports/qa.pdf", "./exports/qa.docx"]})
 
     @app.post("/export/quiz")
     def export_quiz_route():
         data = request.get_json(force=True) or {}
+        topic = data.get("topic", "")
         items = data.get("items", [])
         sources = data.get("sources", [])
         os.makedirs("./exports", exist_ok=True)
-        export_quiz_pdf(items, sources, "./exports/quiz.pdf")
-        export_quiz_docx(items, sources, "./exports/quiz.docx")
-        export_quiz_pptx(items, sources, "./exports/quiz.pptx")
+        export_quiz_pdf(topic, items, sources, "./exports/quiz.pdf")
+        export_quiz_docx(topic, items, sources, "./exports/quiz.docx")
+        export_quiz_pptx(topic, items, sources, "./exports/quiz.pptx")
         return jsonify({"ok": True, "paths": ["./exports/quiz.pdf", "./exports/quiz.docx", "./exports/quiz.pptx"]})
 
     @app.post("/admin/ingest")
