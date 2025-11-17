@@ -26,12 +26,16 @@ function saveLLMConfig(config) {
 
 function updateConfigUI(config) {
     const modelSelect = document.getElementById("config-model");
+    const promptStrategySelect = document.getElementById("config-prompt-strategy");
     const tempInput = document.getElementById("config-temperature");
     const tokensInput = document.getElementById("config-max-tokens");
     const statusDiv = document.getElementById("config-status");
 
     if (modelSelect && config.model_name) {
         modelSelect.value = config.model_name;
+    }
+    if (promptStrategySelect && config.prompt_strategy) {
+        promptStrategySelect.value = config.prompt_strategy;
     }
     if (tempInput && config.temperature !== undefined) {
         tempInput.value = config.temperature;
@@ -40,13 +44,16 @@ function updateConfigUI(config) {
         tokensInput.value = config.max_new_tokens;
     }
     if (statusDiv) {
-        statusDiv.textContent = `Active: ${config.model_name || 'MediPhi'}`;
+        const modelShortName = config.model_name ? config.model_name.split('/').pop() : 'MediPhi';
+        const strategy = config.prompt_strategy || 'zero-shot';
+        statusDiv.textContent = `Active: ${modelShortName} (${strategy})`;
         statusDiv.style.color = "#10b981";
     }
 }
 
 async function applyLLMConfig() {
     const modelSelect = document.getElementById("config-model");
+    const promptStrategySelect = document.getElementById("config-prompt-strategy");
     const tempInput = document.getElementById("config-temperature");
     const tokensInput = document.getElementById("config-max-tokens");
     const statusDiv = document.getElementById("config-status");
@@ -60,6 +67,7 @@ async function applyLLMConfig() {
 
     const config = {
         model_name: modelSelect.value,
+        prompt_strategy: promptStrategySelect ? promptStrategySelect.value : "zero-shot",
         temperature: parseFloat(tempInput.value),
         max_new_tokens: parseInt(tokensInput.value, 10)
     };
@@ -72,16 +80,19 @@ async function applyLLMConfig() {
         saveLLMConfig(res.config);
         updateConfigUI(res.config);
 
+        const modelShortName = res.config.model_name.split('/').pop();
+        const strategy = res.config.prompt_strategy || 'zero-shot';
+
         if (modelChanging) {
-            showToast(`Model changed to ${res.config.model_name}. New model will load on next query (may take 10-30 seconds).`);
+            showToast(`Model changed to ${modelShortName}. New model will load on next query (may take 10-30 seconds).`);
             if (statusDiv) {
-                statusDiv.textContent = `Active: ${res.config.model_name} (will load on next request)`;
+                statusDiv.textContent = `Active: ${modelShortName} (${strategy}) - will load on next request`;
                 statusDiv.style.color = "#f59e0b"; // Orange to indicate pending
             }
         } else {
-            showToast("LLM configuration updated successfully!");
+            showToast(`LLM configuration updated! Now using ${strategy} prompting.`);
             if (statusDiv) {
-                statusDiv.textContent = `Active: ${res.config.model_name}`;
+                statusDiv.textContent = `Active: ${modelShortName} (${strategy})`;
                 statusDiv.style.color = "#10b981"; // Green
             }
         }
@@ -332,7 +343,8 @@ async function handleChatSubmit(e) {
     // Add thinking indicator (enhanced for model loading)
     const savedConfig = loadLLMConfig();
     const modelName = savedConfig ? savedConfig.model_name.split('/').pop() : 'model';
-    addChatMessage(`Thinking (loading ${modelName} if needed)...`, 'ai-thinking');
+    const strategy = savedConfig ? savedConfig.prompt_strategy || 'zero-shot' : 'zero-shot';
+    addChatMessage(`Thinking with ${strategy} prompting (loading ${modelName} if needed)...`, 'ai-thinking');
 
     try {
         // Send to /chat endpoint
@@ -351,7 +363,9 @@ async function handleChatSubmit(e) {
         if (statusDiv && statusDiv.textContent.includes('will load on next request')) {
             const currentConfig = loadLLMConfig();
             if (currentConfig) {
-                statusDiv.textContent = `Active: ${currentConfig.model_name}`;
+                const modelShortName = currentConfig.model_name.split('/').pop();
+                const currentStrategy = currentConfig.prompt_strategy || 'zero-shot';
+                statusDiv.textContent = `Active: ${modelShortName} (${currentStrategy})`;
                 statusDiv.style.color = "#10b981"; // Green - now actually loaded
             }
         }

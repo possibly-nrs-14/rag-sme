@@ -34,7 +34,7 @@
             <div class="llm-config-header">
                 <h3>LLM Configuration</h3>
                 <p class="llm-config-hint">
-                    Switch models and decoding settings without restarting the app.
+                    Switch models, decoding settings, and prompting strategies without restarting.
                 </p>
             </div>
             <div class="llm-config-body">
@@ -45,6 +45,13 @@
                             <option value="microsoft/MediPhi">MediPhi</option>
                             <option value="google/medgemma-4b-it">MedGemma 4B</option>
                             <option value="Intelligent-Internet/II-Medical-8B">II-Medical 8B</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Prompt Strategy</span>
+                        <select id="config-prompt-strategy" class="field-control" title="Zero-shot: Direct instructions. Few-shot: Includes examples to guide responses.">
+                            <option value="zero-shot">Zero-shot</option>
+                            <option value="few-shot">Few-shot (with examples)</option>
                         </select>
                     </label>
                     <label class="field">
@@ -73,7 +80,7 @@
                     </label>
                     <button id="config-apply" class="btn primary-btn">Apply</button>
                 </div>
-                <div id="config-status" class="config-status">Active: MediPhi</div>
+                <div id="config-status" class="config-status">Active: MediPhi (zero-shot)</div>
             </div>
         </section>
 

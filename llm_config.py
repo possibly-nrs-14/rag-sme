@@ -16,12 +16,19 @@ ALLOWED_MODELS = {
     "Intelligent-Internet/II-Medical-8B"
 }
 
+# Allowed prompting strategies
+ALLOWED_PROMPT_STRATEGIES = {
+    "zero-shot",
+    "few-shot"
+}
+
 @dataclass
 class LLMConfig:
     """Configuration for LLM initialization."""
     model_name: str = "microsoft/MediPhi"
     temperature: float = 0.05
     max_new_tokens: int = 512  # Increased from 256 to prevent truncation
+    prompt_strategy: str = "zero-shot"  # "zero-shot" or "few-shot"
 
     def validate(self) -> tuple[bool, Optional[str]]:
         """Validate configuration parameters."""
@@ -31,6 +38,8 @@ class LLMConfig:
             return False, "Temperature must be between 0.0 and 1.0"
         if not (64 <= self.max_new_tokens <= 2048):
             return False, "Max tokens must be between 64 and 2048"
+        if self.prompt_strategy not in ALLOWED_PROMPT_STRATEGIES:
+            return False, f"Prompt strategy must be one of: {', '.join(ALLOWED_PROMPT_STRATEGIES)}"
         return True, None
 
 
@@ -51,12 +60,14 @@ class LLMConfigManager:
             return LLMConfig(
                 model_name=self._config.model_name,
                 temperature=self._config.temperature,
-                max_new_tokens=self._config.max_new_tokens
+                max_new_tokens=self._config.max_new_tokens,
+                prompt_strategy=self._config.prompt_strategy
             )
 
     def update_config(self, model_name: Optional[str] = None,
                      temperature: Optional[float] = None,
-                     max_new_tokens: Optional[int] = None) -> tuple[bool, Optional[str]]:
+                     max_new_tokens: Optional[int] = None,
+                     prompt_strategy: Optional[str] = None) -> tuple[bool, Optional[str]]:
         """
         Update configuration and invalidate cache.
         Returns (success, error_message).
@@ -66,7 +77,8 @@ class LLMConfigManager:
             new_config = LLMConfig(
                 model_name=model_name if model_name is not None else self._config.model_name,
                 temperature=temperature if temperature is not None else self._config.temperature,
-                max_new_tokens=max_new_tokens if max_new_tokens is not None else self._config.max_new_tokens
+                max_new_tokens=max_new_tokens if max_new_tokens is not None else self._config.max_new_tokens,
+                prompt_strategy=prompt_strategy if prompt_strategy is not None else self._config.prompt_strategy
             )
 
             # Validate
@@ -167,7 +179,8 @@ class LLMConfigManager:
                 self._cached_agent = LLMAgent(
                     model_name=self._config.model_name,
                     max_new_tokens=self._config.max_new_tokens,
-                    temperature=self._config.temperature
+                    temperature=self._config.temperature,
+                    prompt_strategy=self._config.prompt_strategy
                 )
 
                 # Build LangChain components

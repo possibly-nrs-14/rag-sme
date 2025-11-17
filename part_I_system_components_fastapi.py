@@ -23,7 +23,7 @@ from part_B_preprocessing import run_batch
 from part_DEF_agent_llm_capabilities import SearchDocsTool
 from custom_agent import ConversationMemory
 from part_G_RAG import load_elasticsearch_config, ElasticsearchIndex
-from llm_config import get_config_manager, ALLOWED_MODELS
+from llm_config import get_config_manager, ALLOWED_MODELS, ALLOWED_PROMPT_STRATEGIES
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,6 +71,7 @@ class LLMConfigRequest(BaseModel):
     model_name: Optional[str] = None
     temperature: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     max_new_tokens: Optional[int] = Field(default=None, ge=64, le=2048)
+    prompt_strategy: Optional[str] = None
 
 # ============================================================================
 # Utility Functions (preserved from Flask version)
@@ -622,7 +623,8 @@ async def admin_llm_config(request: LLMConfigRequest):
         success, error = config_manager.update_config(
             model_name=request.model_name,
             temperature=request.temperature,
-            max_new_tokens=request.max_new_tokens
+            max_new_tokens=request.max_new_tokens,
+            prompt_strategy=request.prompt_strategy
         )
 
         if not success:
@@ -637,9 +639,11 @@ async def admin_llm_config(request: LLMConfigRequest):
             "config": {
                 "model_name": current_config.model_name,
                 "temperature": current_config.temperature,
-                "max_new_tokens": current_config.max_new_tokens
+                "max_new_tokens": current_config.max_new_tokens,
+                "prompt_strategy": current_config.prompt_strategy
             },
-            "allowed_models": list(ALLOWED_MODELS)
+            "allowed_models": list(ALLOWED_MODELS),
+            "allowed_prompt_strategies": list(ALLOWED_PROMPT_STRATEGIES)
         }
     except HTTPException:
         raise
@@ -656,7 +660,9 @@ async def get_llm_config():
         "model_name": current_config.model_name,
         "temperature": current_config.temperature,
         "max_new_tokens": current_config.max_new_tokens,
-        "allowed_models": list(ALLOWED_MODELS)
+        "prompt_strategy": current_config.prompt_strategy,
+        "allowed_models": list(ALLOWED_MODELS),
+        "allowed_prompt_strategies": list(ALLOWED_PROMPT_STRATEGIES)
     }
 
 
