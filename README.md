@@ -15,7 +15,13 @@
 ```
 
 ---
-
+Prompting Outputs: https://www.notion.so/LMA-Project-Documentation-2ad84a0bfbf780abbe5ef3306e8c0e32?source=copy_link
+Video Demo (in order)
+https://drive.google.com/file/d/1TzNPR7UxeNVV7psEXAiQG1gxgD8pxe7y/view?usp=sharing
+https://drive.google.com/file/d/1q8UXT3-with6pW5RGHUO8XS1FoO-b8UX/view?usp=sharing
+https://drive.google.com/file/d/1zzxbdc0zTvCpGFgd71XnKz9qXQB6wwX_/view?usp=sharing
+https://drive.google.com/file/d/1C7jDZ9Pmsz_2e2LLH7ZIWH8RdEAMd-8a/view?usp=sharing
+https://drive.google.com/file/d/1PxQaBBherG7VJ2A88gy5q8LhTNHwfhLx/view?usp=sharing
 ## Quick start
 
 ### 1. Environment
