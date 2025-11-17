@@ -41,7 +41,7 @@ def export_qa_pdf(answer, sources, out_path):
                 y = h - 72
     c.save()    
 
-def export_quiz_pdf(items, out_path):
+def export_quiz_pdf(items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     c = canvas.Canvas(out_path, pagesize=LETTER)
     w, h = LETTER
@@ -98,7 +98,7 @@ def export_qa_docx(answer, sources, out_path):
         d.add_paragraph(f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
     d.save(out_path)
 
-def export_quiz_docx(items, out_path):
+def export_quiz_docx(items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     d = Document()
     d.add_heading("Quiz", level=1)
@@ -111,9 +111,12 @@ def export_quiz_docx(items, out_path):
     d.add_heading("Answer Key", level=1)
     for i, it in enumerate(items, 1):
         d.add_paragraph(f"{i}. {it.get('correct')}")
+    d.add_heading("Sources", level=2)
+    for s in sources or []:
+        d.add_paragraph(f"{s.get('book')} | chunk={s.get('chunk_id')} | g={s.get('granularity')} | pos={s.get('position')}")
     d.save(out_path)
 
-def export_quiz_pptx(items, out_path):
+def export_quiz_pptx(items, sources, out_path):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     prs = Presentation()
     for i, it in enumerate(items, 1):
@@ -198,6 +201,7 @@ class ExportTool(BaseTool):
             
             elif export_type == "quiz":
                 items = data.get("items", [])
+                sources = data.get("sources", [])                
                 if not items:
                     return "Error: No quiz items provided in data."
                 if file_format == "pdf":
@@ -210,7 +214,7 @@ class ExportTool(BaseTool):
                     return path
                 elif file_format == "pptx":
                     path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pptx")
-                    export_quiz_pptx(items, path)
+                    export_quiz_pptx(items, sources, path)
                     return path
                     
             return f"Error: Invalid export_type '{export_type}' or file_format '{file_format}'."
