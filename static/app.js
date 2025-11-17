@@ -35,7 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const quizCount = document.getElementById("quiz-count");
   const quizRun = document.getElementById("quiz-run");
   const quizPreview = document.getElementById("quiz-preview");
-    const quizSources = document.getElementById("quiz-sources");
+const quizSources = document.getElementById("quiz-sources");
   const quizExport = document.getElementById("quiz-export");
 
   qaRun.addEventListener("click", async () => {
