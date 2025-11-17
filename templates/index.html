@@ -1,48 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Neuroanatomy SME</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SME AI Agent</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <header>
-    <h1>Neuroanatomy SME Agent</h1>
-    <p>Ask questions, generate quizzes, export PDFs/DOCX/PPTX.</p>
-  </header>
+    <header>
+        <h1>SME AI Agent (Neuroanatomy)</h1>
+    </header>
 
-  <main>
-    <section id="qa-section" class="panel active">
-      <h2>Question Answering</h2>
-      <label>Question</label>
-      <textarea id="qa-input" rows="3"></textarea>
-      <div class="buttons">
-        <button id="qa-run">Ask</button>
-        <button id="qa-export" disabled>Export PDF/DOCX</button>
-      </div>
-      <h3>Answer</h3>
-      <pre id="qa-answer"></pre>
-      <h3>Sources</h3>
-      <ul id="qa-sources"></ul>
-    </section>
+    <main>
+        <div class="panel" id="chat-panel">
+            <div class="chat-header">
+                <h2>Conversational Agent</h2>
+                <button id="chat-clear" class="clear-btn" title="Clear chat history">Clear</button>
+            </div>
+            <p>Ask complex, multi-step questions. The agent can answer questions, generate quizzes, and export files.</p>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-message ai-message">
+                        Hello! How can I help you today?
+                    </div>
+                </div>
+                <form class="chat-form" id="chat-form">
+                    <textarea id="chat-input" placeholder="Ask the agent anything..." required></textarea>
+                    <button id="chat-send" type="submit">Send</button>
+                </form>
+            </div>
+        </div>
 
-    <section id="quiz-section" class="panel">
-      <h2>Quiz Generator</h2>
-      <label>Topic</label>  
-      <input id="quiz-topic" type="text" placeholder="e.g., Basal ganglia circuits">
-      <label>Number of questions</label>
-      <input id="quiz-count" type="number" value="5" min="1" max="20">
-      <div class="buttons">
-        <button id="quiz-run">Generate quiz</button>
-        <button id="quiz-export" disabled>Export PDF/DOCX/PPTX</button>
-      </div>
-      <h3>Preview</h3>
-      <pre id="quiz-preview"></pre>
-      <h3>Sources</h3>
-      <ul id="quiz-sources"></ul>
-    </section>
-  </main>
+        <div class="panel" id="qa-panel">
+            <h2>Direct QA Tool</h2>
+            <p>Test the RAG QA chain directly.</p>
+            <textarea id="qa-input" rows="3" placeholder="Enter a question..."></textarea>
+            <div class="buttons">
+                <button id="qa-run">Run QA</button>
+                <button id="qa-export" disabled>Export PDF/DOCX</button>
+            </div>
+            <h3>Answer:</h3>
+            <pre id="qa-answer">(No answer yet)</pre>
+            <h3>Sources:</h3>
+            <ul id="qa-sources"></ul>
+        </div>
 
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+        <div class="panel" id="quiz-panel">
+            <h2>Direct Quiz Tool</h2>
+            <p>Test the RAG Quiz chain directly.</p>
+            <input type="text" id="quiz-topic" placeholder="Enter a topic (e.g., 'frontal lobe')">
+            <input type="number" id="quiz-count" value="5" min="1" max="10">
+            <div class="buttons">
+                <button id="quiz-run">Generate Quiz</button>
+                <button id="quiz-export" disabled>Export PDF/DOCX/PPTX</button>
+            </div>
+            <h3>Quiz Preview:</h3>
+            <pre id="quiz-preview">(No quiz generated yet)</pre>
+            <h3>Sources</h3>
+            <ul id="quiz-sources"></ul>
+        </div>
+    </main>
+    <script src="/static/app.js"></script>
 </body>
 </html>

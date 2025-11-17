@@ -1,14 +1,12 @@
 # part_I_system_components.py
 import os
-import time
 import json
-from contextlib import contextmanager
+import logging
 from flask import Flask, request, jsonify, render_template
 from part_H_tools import (
     export_qa_pdf, export_qa_docx,
     export_quiz_pdf, export_quiz_docx, export_quiz_pptx
 )
-
 from helpers import sanitize_for_injection
 from part_A_collection import collect_and_organize_documents
 from part_B_preprocessing import run_batch
@@ -16,8 +14,10 @@ from part_DEF_agent_llm_capabilities import (
     SearchDocsTool,
     LLMAgent
 )
+from custom_agent import ConversationMemory
 from part_G_RAG import load_elasticsearch_config, ElasticsearchIndex
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 def env_bool(name, default=False):
     v = os.environ.get(name)
     if v is None:
@@ -103,7 +103,7 @@ def run_ingestion():
 
 
 INGESTION_STATUS = run_ingestion()
-
+CONVERSATION_MEMORIES = {}
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
     @app.get("/")
@@ -302,7 +302,8 @@ def create_app():
     # For Intelligent-Internet/II-Medical-8B, due to its inbuilt reasoning, we increased the max_tokens in the output to 512. The default is 256
     llm = llm_agent.load_llm_lc()
     qa_chain = llm_agent.build_lc_qa_chain(llm, search_tool) if search_tool else None
-
+    logger.info("Building agent executor...")
+    agent_executor = llm_agent.build_agent_executor(llm, search_tool, max_iterations=5)
     @app.post("/lc/qa")
     def lc_qa():
         data = request.get_json(force=True) or {}
@@ -318,7 +319,112 @@ def create_app():
         quiz_chain = llm_agent.build_lc_quiz_chain(llm, search_tool, n_questions=n) if search_tool else None
         out = quiz_chain.invoke({"topic": topic}) if quiz_chain else {"error": "LangChain unavailable"}
         return jsonify(out)
+    @app.post("/chat")
+    def chat():
+        """
+        Main conversational agent endpoint (Custom Executor Version).
+        Manages chat history via ConversationMemory.
+        """
+        try:
+            data = request.get_json(force=True) or {}
+            query = sanitize_for_injection(data.get("query", ""))
+            session_id = data.get("session_id", "default_session")
+            
+            if not query:
+                return jsonify({"error": "Query cannot be empty"}), 400
 
+            # Get or create conversation memory for this session
+            if session_id not in CONVERSATION_MEMORIES:
+                CONVERSATION_MEMORIES[session_id] = ConversationMemory(max_history=10)
+            memory = CONVERSATION_MEMORIES[session_id]
+            
+            logger.info(f"Processing query for session {session_id}: {query}")
+            
+            # Invoke the agent with memory
+            result = llm_agent.invoke_agent(agent_executor, query, memory)
+            
+            agent_output = result['output'] # This is the default ("Here is a quiz...")
+            
+            intermediate_steps = result.get('intermediate_steps', [])
+            if intermediate_steps:
+                last_step = intermediate_steps[-1]
+                last_action = last_step.get("action")
+                
+                # Check if the last action was one that should return its data
+                if last_action in ["generate_quiz_on_neuroanatomy_topic", "answer_question_about_neuroanatomy"]:
+                    observation = last_step.get("observation")
+                    
+                    # Check if it's the data object, not an error string
+                    if isinstance(observation, dict):
+                        agent_output = observation # This is now {"items": [...]}
+                    else:
+                        agent_output = str(observation) # It's an error
+                
+                # Handle export/email tools, which just return a string path/confirmation
+                elif last_action in ["export_document", "send_email"]:
+                    agent_output = str(last_step.get("observation"))
+            
+            # --- End of Fix ---
+
+            # Update conversation memory
+            # We must save a string to memory, so we convert back
+            memory_output = json.dumps(agent_output) if isinstance(agent_output, dict) else str(agent_output)
+            memory.add_user_message(query)
+            memory.add_assistant_message(memory_output)
+            
+            logger.info(f"Agent response for session {session_id}: {memory_output[:100]}...")
+            
+            # Return response
+            return jsonify({
+                "response": agent_output,
+                "session_id": session_id,
+                "tools_used": len(result.get('intermediate_steps', []))
+            })
+
+        except Exception as e:
+            logger.error(f"Chat endpoint failed: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+    
+    # NEW: Endpoint to clear conversation history
+    @app.post("/chat/clear")
+    def clear_chat():
+        """Clear conversation history for a session."""
+        try:
+            data = request.get_json(force=True) or {}
+            session_id = data.get("session_id", "default_session")
+            
+            if session_id in CONVERSATION_MEMORIES:
+                CONVERSATION_MEMORIES[session_id].clear()
+                logger.info(f"Cleared conversation history for session {session_id}")
+                return jsonify({"ok": True, "message": "History cleared"})
+            else:
+                return jsonify({"ok": True, "message": "No history to clear"})
+        except Exception as e:
+            logger.error(f"Clear chat failed: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+    
+    # NEW: Endpoint to get conversation history
+    @app.get("/chat/history/<session_id>")
+    def get_chat_history(session_id):
+        """Get conversation history for a session."""
+        try:
+            if session_id in CONVERSATION_MEMORIES:
+                history = CONVERSATION_MEMORIES[session_id].get_history()
+                return jsonify({
+                    "session_id": session_id,
+                    "history": history,
+                    "message_count": len(history)
+                })
+            else:
+                return jsonify({
+                    "session_id": session_id,
+                    "history": [],
+                    "message_count": 0
+                })
+        except Exception as e:
+            logger.error(f"Get history failed: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+    
     return app
 
 

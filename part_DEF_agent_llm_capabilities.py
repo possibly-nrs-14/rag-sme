@@ -4,21 +4,24 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndB
 from langchain_huggingface import HuggingFacePipeline
 from operator import itemgetter
 import random
-import torch
+import logging
 import os
 import json
 import random
-from typing import Optional, Any
+from typing import Optional, Any, List, Dict, TypedDict, Annotated
 from pydantic import PrivateAttr
 from langchain_core.prompts import PromptTemplate
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, Tool
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnableParallel
+
+# ---
 from part_G_RAG import (
     EmbeddingIndex, ElasticsearchIndex, QueryEncoder, BGEReranker,
     SearchPipeline, load_elasticsearch_config
 )
-import logging
+from custom_agent import AgentExecutor, ConversationMemory
+from part_H_tools import EmailTool, ExportTool
 
 logger = logging.getLogger(__name__)
 
@@ -121,13 +124,14 @@ def parse_quiz_json(text):
     except Exception:
         return None
 
-
 class LLMAgent():
-    def __init__(self, model_name='google/medgemma-4b-it', max_new_tokens=256, temperature=0.05):
+    def __init__(self, model_name='google/medgemma-4b-it', max_new_tokens=256, temperature=0.05, prompt_strategy='zero-shot'):
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        self.prompt_strategy = prompt_strategy
     def load_llm_lc(self):
+        logger.info(f"Loading model: {self.model_name}")
         tok = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype="auto", device_map="auto", trust_remote_code=True, quantization_config=bnb_config
@@ -146,48 +150,168 @@ class LLMAgent():
     def lc_templates(self):
         qa, quiz = None, None
         if self.model_name == 'google/medgemma-4b-it':
-            qa = PromptTemplate.from_template(
-                "You are a neuroanatomy assistant.\n"
-                "Use ONLY the information in the Context to answer the Question.\n"
-                "You must output exactly ONE of the following:\n"
-                "1) A single, self-contained answer in at most 3 sentences of plain English, "
-                "IF the Context clearly contains the answer.\n"
-                "2) Exactly the phrase: Insufficient context. (nothing else), "
-                "IF the Context does NOT contain the answer.\n"
-                "You MUST NOT output both an answer AND 'Insufficient context.'\n"
-                "Do NOT write code, pseudo-code, or functions.\n"
-                "Do NOT include backticks or markdown fences in your reply.\n\n"
-                "Context:\n{context}\n\n"
-                "Question: {question}\n"
-                "Answer:"
-            )
+            if self.prompt_strategy == 'zero-shot':
+                qa = PromptTemplate.from_template(
+                    "You are a neuroanatomy assistant.\n"
+                    "Use ONLY the information in the Context to answer the Question.\n"
+                    "You must output exactly ONE of the following:\n"
+                    "1) A single, self-contained answer in at most 3 sentences of plain English, "
+                    "IF the Context clearly contains the answer.\n"
+                    "2) Exactly the phrase: Insufficient context. (nothing else), "
+                    "IF the Context does NOT contain the answer.\n"
+                    "You MUST NOT output both an answer AND 'Insufficient context.'\n"
+                    "Do NOT write code, pseudo-code, or functions.\n"
+                    "Do NOT include backticks or markdown fences in your reply.\n\n"
+                    "Context:\n{context}\n\n"
+                    "Question: {question}\n"
+                    "Answer:"
+                )
+                quiz = PromptTemplate.from_template(
+                    "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+                )
+            else:
+                qa = PromptTemplate.from_template(
+                    "You are a neuroanatomy assistant.\n"
+                    "Use ONLY the information in the Context to answer the Question.\n"
+                    "You must output exactly ONE of the following:\n"
+                    "1) A single, self-contained answer in at most 3 sentences of plain English, IF the Context clearly contains the answer.\n"
+                    "2) Exactly the phrase: Insufficient context. (nothing else), IF the Context does NOT contain the answer.\n"
+                    "Do NOT include backticks or markdown fences in your reply.\n\n"
+                    "--- EXAMPLE 1 ---\n"
+                    "Context: The cerebellum is located at the back of the brain, inferior to the cerebrum. It is responsible for coordinating voluntary movements.\n"
+                    "Question: What is the function of the cerebellum?\n"
+                    "Answer: The cerebellum is responsible for coordinating voluntary movements.\n\n"
+                    "--- EXAMPLE 2 ---\n"
+                    "Context: The cerebrum is the largest part of the brain. The frontal lobe is one of its four main lobes.\n"
+                    "Question: What is the primary role of the hippocampus?\n"
+                    "Answer: Insufficient context.\n"
+                    "--- END EXAMPLES ---\n\n"
+                    "Context:\n{context}\n\n"
+                    "Question: {question}\n"
+                    "Answer:"
+                )
             quiz = PromptTemplate.from_template(
-                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\n"
+                "--- EXAMPLE 1 ---\n"
+                "Context: The central nervous system (CNS) consists of the brain and the spinal cord.\n"
+                "JSON:\n"
+                '{{\n'
+                '  "question": "What are the two main components of the central nervous system (CNS)?",\n'
+                '  "options": {{\n'
+                '    "A": "The brain and the peripheral nerves",\n'
+                '    "B": "The brain and the spinal cord",\n'
+                '    "C": "The spinal cord and the cranial nerves",\n'
+                '    "D": "The cerebrum and the cerebellum"\n'
+                '  }},\n'
+                '  "correct": "B"\n'
+                '}}\n'
+                "--- END EXAMPLES ---\n\n"
+                "Context:\n{context}\n\nJSON:"
             )
+
         elif self.model_name == 'Intelligent-Internet/II-Medical-8B':
-            qa = PromptTemplate.from_template(
-                "<|system|>\n"
-                "You are an expert neuroanatomy assistant. Your task is to answer the user's question based *only* on the provided context.\n"
-                "Follow these steps:\n"
-                "1.  Carefully read the Question and the Context.\n"
-                "2.  Reason step-by-step to determine if the Context contains the information to answer the Question.\n"
-                "3.  If the answer is in the context, formulate a concise, one-paragraph answer.\n"
-                "4.  If the answer is NOT in the context, your final answer MUST be exactly: Insufficient context.\n"
-                "5.  Provide your reasoning and final answer in the specified format.\n\n"
-                "<|user|>\n"
-                "**Context:**\n"
-                "{context}\n\n"
-                "**Question:**\n"
-                "{question}\n\n"
-                "<|assistant|>\n"
-                
-                "[Your final answer. This should be a concise paragraph OR the exact phrase 'Insufficient context.']"
-            )
+            if self.prompt_strategy == 'zero-shot':
+                qa = PromptTemplate.from_template(
+                    "<|system|>\n"
+                    "You are an expert neuroanatomy assistant. Your task is to answer the user's question based *only* on the provided context.\n"
+                    "Follow these steps:\n"
+                    "1.  Carefully read the Question and the Context.\n"
+                    "2.  Reason step-by-step to determine if the Context contains the information to answer the Question.\n"
+                    "3.  If the answer is in the context, formulate a concise, one-paragraph answer.\n"
+                    "4.  If the answer is NOT in the context, your final answer MUST be exactly: Insufficient context.\n"
+                    "5.  Provide your reasoning and final answer in the specified format.\n\n"
+                    "<|user|>\n"
+                    "**Context:**\n"
+                    "{context}\n\n"
+                    "**Question:**\n"
+                    "{question}\n\n"
+                    "<|assistant|>\n"
+                    
+                    "[Your final answer. This should be a concise paragraph OR the exact phrase 'Insufficient context.']"
+                )
+                quiz = PromptTemplate.from_template(
+                    "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+                )
+            else:
+                qa = PromptTemplate.from_template(
+                    "<|system|>\n"
+                    "You are an expert neuroanatomy assistant. Your task is to answer the user's question based *only* on the provided context.\n"
+                    "Follow these steps:\n"
+                    "1.  Carefully read the Question and the Context.\n"
+                    "2.  Reason step-by-step to determine if the Context contains the information to answer the Question.\n"
+                    "3.  If the answer is in the context, formulate a concise, one-paragraph answer.\n"
+                    "4.  If the answer is NOT in the context, your final answer MUST be exactly: Insufficient context.\n"
+                    "5.  Provide your reasoning and final answer in the specified format.\n\n"
+                    "<|user|>\n"
+                    "--- EXAMPLE 1 ---\n"
+                    "Context: The cerebellum coordinates voluntary movements.\n"
+                    "Question: What does the cerebellum do?\n"
+                    "<|assistant|>\n"
+                    "**Reasoning:**\n"
+                    "[The user is asking for the function of the cerebellum. The context states 'The cerebellum coordinates voluntary movements'. This directly answers the question.]\n\n"
+                    "**Final Answer:**\n"
+                    "[The cerebellum coordinates voluntary movements.]\n\n"
+                    "<|user|>\n"
+                    "--- EXAMPLE 2 ---\n"
+                    "Context: The frontal lobe is involved in planning.\n"
+                    "Question: What is the function of the temporal lobe?\n"
+                    "<|assistant|>\n"
+                    "**Reasoning:**\n"
+                    "[The user is asking about the temporal lobe. The context only mentions the frontal lobe. Therefore, the context is insufficient.]\n\n"
+                    "**Final Answer:**\n"
+                    "[Insufficient context.]\n\n"
+                    "<|user|>\n"
+                    "--- END EXAMPLES ---\n\n"
+                    "**Context:**\n"
+                    "{context}\n\n"
+                    "**Question:**\n"
+                    "{question}\n\n"
+                    "<|assistant|>\n"
+                )
             quiz = PromptTemplate.from_template(
-                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
-            )
+                    "<|system|>\n"
+                    "Create ONE MCQ (A–D) from the context. One correct option only. Return *only* a valid JSON object with question, options (A..D), correct.\n"
+                    "<|user|>\n"
+                    "--- EXAMPLE 1 ---\n"
+                    "Context: The central nervous system (CNS) consists of the brain and the spinal cord.\n"
+                    "<|assistant|>\n"
+                    '{{\n'
+                    '  "question": "What are the two main components of the central nervous system (CNS)?",\n'
+                    '  "options": {{\n'
+                    '    "A": "The brain and the peripheral nerves",\n'
+                    '    "B": "The brain and the spinal cord",\n'
+                    '    "C": "The spinal cord and the cranial nerves",\n'
+                    '    "D": "The cerebrum and the cerebellum"\n'
+                    '  }},\n'
+                    '  "correct": "B"\n'
+                    '}}\n'
+                    "<|user|>\n"
+                    "--- END EXAMPLES ---\n\n"
+                    "Context:\n{context}\n\n"
+                    "<|assistant|>"
+                )
         elif self.model_name == 'microsoft/MediPhi':
-            qa = PromptTemplate.from_template(
+            if self.prompt_strategy == 'zero-shot':
+                qa = PromptTemplate.from_template(
+                        "<|system|>\n"
+                        "You are an expert clinical QA assistant.\n"
+                        "You must answer the user's question based *only* on the provided context.\n"
+                        "- If the context contains the answer, provide a concise, single-paragraph answer.\n"
+                        "- If the context does NOT contain the answer, you MUST respond with *only* the exact phrase: Insufficient context.\n"
+                        "<|end|>\n"
+                        "<|user|>\n"
+                        "Context:\n"
+                        "{context}\n\n"
+                        "Question: {question}\n"
+                        "<|end|>\n"
+                        "<|assistant|>"
+                    )
+                
+                quiz = PromptTemplate.from_template(
+                    "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
+                )
+            else:
+                qa = PromptTemplate.from_template(
                     "<|system|>\n"
                     "You are an expert clinical QA assistant.\n"
                     "You must answer the user's question based *only* on the provided context.\n"
@@ -195,26 +319,56 @@ class LLMAgent():
                     "- If the context does NOT contain the answer, you MUST respond with *only* the exact phrase: Insufficient context.\n"
                     "<|end|>\n"
                     "<|user|>\n"
+                    "--- EXAMPLE 1 ---\n"
+                    "Context: The cerebellum coordinates voluntary movements.\n"
+                    "Question: What does the cerebellum do?\n"
+                    "<|end|>\n"
+                    "<|assistant|>\n"
+                    "The cerebellum coordinates voluntary movements.\n"
+                    "<|end|>\n"
+                    "<|user|>\n"
+                    "--- EXAMPLE 2 ---\n"
+                    "Context: The frontal lobe is involved in planning.\n"
+                    "Question: What is the function of the temporal lobe?\n"
+                    "<|end|>\n"
+                    "<|assistant|>\n"
+                    "Insufficient context.\n"
+                    "<|end|>\n"
+                    "<|user|>\n"
+                    "--- END EXAMPLES ---\n\n"
                     "Context:\n"
                     "{context}\n\n"
                     "Question: {question}\n"
                     "<|end|>\n"
                     "<|assistant|>"
                 )
-            
             quiz = PromptTemplate.from_template(
-                "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
-            )
-            # quiz = PromptTemplate.from_template(
-            #     "Create ONE MCQ (A–D) from the context. Exactly one correct option.\n"
-            #     "Return ONLY a single JSON object with keys:\n"
-            #     "- question (string)\n"
-            #     "- options (object with keys 'A','B','C','D')\n"
-            #     "- correct (one of 'A','B','C','D')\n"
-            #     "Do NOT include any explanation, markdown, or text outside the JSON.\n\n"
-            #     "Context:\n{context}\n\nJSON:"
-            # )
-
+                    "<|system|>\n"
+                    "You are a quiz generation bot. Create ONE MCQ (A–D) from the context.\n"
+                    "The correct option must be from the context.\n"
+                    "You must return *only* a single valid JSON object with 'question', 'options' (A,B,C,D), and 'correct'.\n"
+                    "<|end|>\n"
+                    "<|user|>\n"
+                    "Context: The central nervous system (CNS) consists of the brain and the spinal cord.\n"
+                    "<|end|>\n"
+                    "<|assistant|>\n"
+                    '{{\n'
+                    '  "question": "What are the two main components of the central nervous system (CNS)?",\n'
+                    '  "options": {{\n'
+                    '    "A": "The brain and the peripheral nerves",\n'
+                    '    "B": "The brain and the spinal cord",\n'
+                    '    "C": "The spinal cord and the cranial nerves",\n'
+                    '    "D": "The cerebrum and the cerebellum"\n'
+                    '  }},\n'
+                    '  "correct": "B"\n'
+                    '}}\n'
+                    "<|end|>\n"
+                    "<|user|>\n"
+                    "Context:\n"
+                    "{context}\n"
+                    "<|end|>\n"
+                    "<|assistant|>"
+                )
         return qa, quiz
 
     def add_context(self, docs, k=3):
@@ -290,6 +444,9 @@ class LLMAgent():
         result = self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
         return {"items": result["items"], "sources": result["sources"]}
     
+        result = self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
+        return {"items": result["items"], "sources": result["sources"]}
+    
     def build_lc_quiz_chain(self, llm, search_tool, n_questions=5):
         quiz_prompt = self.lc_templates()[1]
         bound = partial(
@@ -300,3 +457,53 @@ class LLMAgent():
             n_questions=n_questions,
         )
         return RunnableLambda(bound)
+    
+    def build_agent_executor(self, llm, search_tool, max_iterations=5):
+
+        # Build the QA and Quiz chains
+        qa_chain = self.build_lc_qa_chain(llm, search_tool)
+        quiz_chain = self.build_lc_quiz_chain(llm, search_tool, n_questions=5)
+        
+        # Create tools list
+        tools = [
+            search_tool,
+            Tool(
+                name="answer_question_about_neuroanatomy",
+                func=qa_chain.invoke,
+                description="""Use this tool to answer a specific question about neuroanatomy, the human nervous system, or related medical topics.
+                Input must be a JSON object with a 'question' key, e.g.: {"question": "What is the function of the cerebellum?"}
+                The output will be a JSON object containing the 'answer' and 'sources'."""
+            ),
+            Tool(
+                name="generate_quiz_on_neuroanatomy_topic",
+                func=quiz_chain.invoke,
+                description="""Use this tool to generate a multiple-choice quiz on a given neuroanatomy topic.
+            Input must be a JSON object with a 'topic' key, e.g.: {"topic": "The frontal lobe"}
+            The output will be a JSON object containing a list of 'items'."""
+                    ),
+            ExportTool(),
+            EmailTool()
+        ]
+        executor = AgentExecutor(
+            llm=llm,
+            model_name=self.model_name,
+            tools=tools,
+            max_iterations=max_iterations,
+            verbose=True 
+        )
+        
+        logger.info("Agent executor created successfully.")
+        return executor
+
+    def invoke_agent(self, agent_executor, user_input, memory=None):
+        chat_history = ""
+        if memory:
+            chat_history = memory.get_history_string()
+        
+        # Invoke the executor
+        result = agent_executor.invoke({
+            "input": user_input,
+            "chat_history": chat_history
+        })
+        
+        return result
