@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SME QA/Quiz Tools - Neuroanatomy</title>
+
+    <!-- Same font as chat page -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <span class="brand-title">SME AI Agent</span>
+                    <span class="brand-subtitle">Neuroanatomy</span>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/chat">Chat</a>
+                <a href="/tools" class="active">QA/Quiz Tools</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="page-shell">
+        <!-- Shared LLM config -->
+        <section class="llm-config-bar">
+            <div class="llm-config-header">
+                <h3>LLM Configuration</h3>
+                <p class="llm-config-hint">
+                    Configure the same model and decoding settings used by the tools below.
+                </p>
+            </div>
+            <div class="llm-config-body">
+                <div class="config-controls">
+                    <label class="field">
+                        <span class="field-label">Model</span>
+                        <select id="config-model" class="field-control">
+                            <option value="microsoft/MediPhi">MediPhi</option>
+                            <option value="google/medgemma-4b-it">MedGemma 4B</option>
+                            <option value="Intelligent-Internet/II-Medical-8B">II-Medical 8B</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Temperature</span>
+                        <input
+                            type="number"
+                            id="config-temperature"
+                            class="field-control"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value="0.05"
+                        >
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Max tokens</span>
+                        <input
+                            type="number"
+                            id="config-max-tokens"
+                            class="field-control"
+                            min="64"
+                            max="2048"
+                            step="64"
+                            value="512"
+                        >
+                    </label>
+                    <button id="config-apply" class="btn primary-btn">Apply</button>
+                </div>
+                <div id="config-status" class="config-status">Active: MediPhi</div>
+            </div>
+        </section>
+
+        <main class="main-layout two-column">
+            <!-- QA Panel -->
+            <section class="panel" id="qa-panel">
+                <header class="panel-header">
+                    <div>
+                        <h2>Direct QA Tool</h2>
+                        <p class="panel-description">
+                            Test the RAG QA chain directly and export answers with sources.
+                        </p>
+                    </div>
+                </header>
+
+                <div class="panel-body">
+                    <label class="field">
+                        <span class="field-label">Question</span>
+                        <textarea
+                            id="qa-input"
+                            rows="3"
+                            class="field-control"
+                            placeholder="Enter a question…"
+                        ></textarea>
+                    </label>
+
+                    <div class="panel-actions">
+                        <button id="qa-run" class="btn primary-btn">Run QA</button>
+                        <button id="qa-export" class="btn ghost-btn" disabled>
+                            Export PDF / DOCX
+                        </button>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">Answer</h3>
+                        <pre id="qa-answer" class="mono-block">(No answer yet)</pre>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">Sources</h3>
+                        <ul id="qa-sources" class="sources-list"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quiz Panel -->
+            <section class="panel" id="quiz-panel">
+                <header class="panel-header">
+                    <div>
+                        <h2>Direct Quiz Tool</h2>
+                        <p class="panel-description">
+                            Generate topic-focused MCQs and export them for study.
+                        </p>
+                    </div>
+                </header>
+
+                <div class="panel-body">
+                    <div class="field-grid">
+                        <label class="field">
+                            <span class="field-label">Topic</span>
+                            <input
+                                type="text"
+                                id="quiz-topic"
+                                class="field-control"
+                                placeholder="Enter a topic (e.g., 'frontal lobe')"
+                            >
+                        </label>
+                        <label class="field field-small">
+                            <span class="field-label"># Questions</span>
+                            <input
+                                type="number"
+                                id="quiz-count"
+                                class="field-control"
+                                value="5"
+                                min="1"
+                                max="10"
+                            >
+                        </label>
+                    </div>
+
+                    <div class="panel-actions">
+                        <button id="quiz-run" class="btn primary-btn">Generate Quiz</button>
+                        <button id="quiz-export" class="btn ghost-btn" disabled>
+                            Export PDF / DOCX / PPTX
+                        </button>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">Quiz Preview</h3>
+                        <pre id="quiz-preview" class="mono-block">(No quiz generated yet)</pre>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">Sources</h3>
+                        <ul id="quiz-sources" class="sources-list"></ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

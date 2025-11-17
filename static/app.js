@@ -2,6 +2,121 @@ let lastQa = null;
 let lastQuiz = null;
 let chatSessionId = "session_" + Date.now(); // Session ID for chat agent
 
+// ============================================================================
+// LLM Configuration Management
+// ============================================================================
+
+const LLM_CONFIG_KEY = "sme_llm_config";
+
+function loadLLMConfig() {
+    const saved = localStorage.getItem(LLM_CONFIG_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+}
+
+function saveLLMConfig(config) {
+    localStorage.setItem(LLM_CONFIG_KEY, JSON.stringify(config));
+}
+
+function updateConfigUI(config) {
+    const modelSelect = document.getElementById("config-model");
+    const tempInput = document.getElementById("config-temperature");
+    const tokensInput = document.getElementById("config-max-tokens");
+    const statusDiv = document.getElementById("config-status");
+
+    if (modelSelect && config.model_name) {
+        modelSelect.value = config.model_name;
+    }
+    if (tempInput && config.temperature !== undefined) {
+        tempInput.value = config.temperature;
+    }
+    if (tokensInput && config.max_new_tokens !== undefined) {
+        tokensInput.value = config.max_new_tokens;
+    }
+    if (statusDiv) {
+        statusDiv.textContent = `Active: ${config.model_name || 'MediPhi'}`;
+        statusDiv.style.color = "#10b981";
+    }
+}
+
+async function applyLLMConfig() {
+    const modelSelect = document.getElementById("config-model");
+    const tempInput = document.getElementById("config-temperature");
+    const tokensInput = document.getElementById("config-max-tokens");
+    const statusDiv = document.getElementById("config-status");
+    const applyBtn = document.getElementById("config-apply");
+
+    if (!modelSelect || !tempInput || !tokensInput) return;
+
+    // Get current saved config to detect if model is changing
+    const oldConfig = loadLLMConfig();
+    const modelChanging = oldConfig && oldConfig.model_name !== modelSelect.value;
+
+    const config = {
+        model_name: modelSelect.value,
+        temperature: parseFloat(tempInput.value),
+        max_new_tokens: parseInt(tokensInput.value, 10)
+    };
+
+    if (applyBtn) applyBtn.disabled = true;
+    if (statusDiv) statusDiv.textContent = "Applying configuration...";
+
+    try {
+        const res = await postJSON("/admin/llm-config", config);
+        saveLLMConfig(res.config);
+        updateConfigUI(res.config);
+
+        if (modelChanging) {
+            showToast(`Model changed to ${res.config.model_name}. New model will load on next query (may take 10-30 seconds).`);
+            if (statusDiv) {
+                statusDiv.textContent = `Active: ${res.config.model_name} (will load on next request)`;
+                statusDiv.style.color = "#f59e0b"; // Orange to indicate pending
+            }
+        } else {
+            showToast("LLM configuration updated successfully!");
+            if (statusDiv) {
+                statusDiv.textContent = `Active: ${res.config.model_name}`;
+                statusDiv.style.color = "#10b981"; // Green
+            }
+        }
+    } catch (err) {
+        if (statusDiv) {
+            statusDiv.textContent = `Error: ${err.message}`;
+            statusDiv.style.color = "#ef4444";
+        }
+        showToast(`Config update failed: ${err.message}`);
+    } finally {
+        if (applyBtn) applyBtn.disabled = false;
+    }
+}
+
+async function initLLMConfig() {
+    // Load saved config or fetch current from server
+    let config = loadLLMConfig();
+
+    if (!config) {
+        try {
+            const res = await fetch("/admin/llm-config");
+            if (res.ok) {
+                config = await res.json();
+                saveLLMConfig(config);
+            }
+        } catch (e) {
+            console.warn("Could not fetch LLM config:", e);
+        }
+    }
+
+    if (config) {
+        updateConfigUI(config);
+    }
+}
+
 async function postJSON(url, payload) {
   const res = await fetch(url, {
     method: "POST",
@@ -54,6 +169,78 @@ function renderSources(listEl, sources) {
       `${s.book} | chunk=${s.chunk_id} | g=${s.granularity} | pos=${s.position}`;
     listEl.appendChild(li);
   });
+}
+
+// ============================================================================
+// Intermediate Steps Rendering
+// ============================================================================
+
+function renderIntermediateSteps(steps) {
+    if (!steps || steps.length === 0) return null;
+
+    const container = document.createElement("div");
+    container.className = "intermediate-steps";
+
+    const summary = document.createElement("summary");
+    summary.textContent = "Show reasoning";
+    summary.className = "steps-summary";
+
+    const details = document.createElement("details");
+    details.appendChild(summary);
+
+    const stepsContent = document.createElement("div");
+    stepsContent.className = "steps-content";
+
+    steps.forEach((step, index) => {
+        const stepDiv = document.createElement("div");
+        stepDiv.className = "step-item";
+
+        // Always show step number for clarity
+        const stepHeader = document.createElement("div");
+        stepHeader.style.fontWeight = "600";
+        stepHeader.style.color = "#60a5fa";
+        stepHeader.style.marginBottom = "0.5rem";
+        stepHeader.textContent = `Step ${index + 1}`;
+        stepDiv.appendChild(stepHeader);
+
+        if (step.thought && step.thought.trim()) {
+            const thoughtP = document.createElement("p");
+            thoughtP.innerHTML = `<strong>Thought:</strong> ${escapeHtml(step.thought)}`;
+            stepDiv.appendChild(thoughtP);
+        }
+
+        if (step.action) {
+            const actionP = document.createElement("p");
+            const actionInput = typeof step.action_input === 'object'
+                ? JSON.stringify(step.action_input, null, 2)
+                : String(step.action_input || '');
+            actionP.innerHTML = `<strong>Action:</strong> ${escapeHtml(step.action)}`;
+            if (actionInput && actionInput !== '{}' && actionInput !== '') {
+                actionP.innerHTML += `<br><strong>Input:</strong> <code>${escapeHtml(actionInput)}</code>`;
+            }
+            stepDiv.appendChild(actionP);
+        }
+
+        if (step.observation) {
+            const obsP = document.createElement("p");
+            const obsText = String(step.observation).substring(0, 300);
+            obsP.innerHTML = `<strong>Observation:</strong> ${escapeHtml(obsText)}${step.observation.length > 300 ? '...' : ''}`;
+            stepDiv.appendChild(obsP);
+        }
+
+        stepsContent.appendChild(stepDiv);
+    });
+
+    details.appendChild(stepsContent);
+    container.appendChild(details);
+
+    return container;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /**
@@ -129,7 +316,8 @@ async function handleChatSubmit(e) {
     if (e) e.preventDefault();
     const chatInput = document.getElementById("chat-input");
     const chatSend = document.getElementById("chat-send");
-    
+    const statusDiv = document.getElementById("config-status");
+
     const query = chatInput.value.trim();
     if (!query) return;
 
@@ -137,12 +325,14 @@ async function handleChatSubmit(e) {
     chatInput.disabled = true;
     chatSend.disabled = true;
     chatInput.value = "";
-    
+
     // Render user message
     addChatMessage(query, 'user');
 
-    // Add thinking indicator
-    addChatMessage("Thinking...", 'ai-thinking');
+    // Add thinking indicator (enhanced for model loading)
+    const savedConfig = loadLLMConfig();
+    const modelName = savedConfig ? savedConfig.model_name.split('/').pop() : 'model';
+    addChatMessage(`Thinking (loading ${modelName} if needed)...`, 'ai-thinking');
 
     try {
         // Send to /chat endpoint
@@ -150,15 +340,33 @@ async function handleChatSubmit(e) {
             query: query,
             session_id: chatSessionId
         });
-        
+
         // Remove thinking indicator
         const thinkingMsg = document.querySelector('.ai-thinking');
         if (thinkingMsg) {
             thinkingMsg.remove();
         }
 
+        // Update status to show model is now loaded
+        if (statusDiv && statusDiv.textContent.includes('will load on next request')) {
+            const currentConfig = loadLLMConfig();
+            if (currentConfig) {
+                statusDiv.textContent = `Active: ${currentConfig.model_name}`;
+                statusDiv.style.color = "#10b981"; // Green - now actually loaded
+            }
+        }
+
         // Render AI response
         addChatMessage(res.response, 'ai');
+
+        // Render intermediate steps if available
+        if (res.intermediate_steps && res.intermediate_steps.length > 0) {
+            const stepsElement = renderIntermediateSteps(res.intermediate_steps);
+            if (stepsElement && chatMessages) {
+                chatMessages.appendChild(stepsElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
 
     } catch (err) {
         // Remove thinking indicator
@@ -193,8 +401,17 @@ async function handleClearChat() {
 
 
 window.addEventListener("DOMContentLoaded", () => {
+  // Initialize LLM configuration
+  initLLMConfig();
+
+  // Add Apply button listener for config
+  const configApplyBtn = document.getElementById("config-apply");
+  if (configApplyBtn) {
+      configApplyBtn.addEventListener("click", applyLLMConfig);
+  }
+
   // --- Feedback UI creation removed ---
-  
+
   const qaPanel = document.getElementById("qa-panel");
   const qaInput = document.getElementById("qa-input");
   const qaRun = document.getElementById("qa-run");

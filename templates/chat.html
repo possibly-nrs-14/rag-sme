@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SME Chat - Neuroanatomy</title>
+
+    <!-- Modern, clean font -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <span class="brand-title">SME AI Agent</span>
+                    <span class="brand-subtitle">Neuroanatomy</span>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/chat" class="active">Chat</a>
+                <a href="/tools">QA/Quiz Tools</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="page-shell">
+        <!-- LLM Config -->
+        <section class="llm-config-bar">
+            <div class="llm-config-header">
+                <h3>LLM Configuration</h3>
+                <p class="llm-config-hint">
+                    Switch models and decoding settings without restarting the app.
+                </p>
+            </div>
+            <div class="llm-config-body">
+                <div class="config-controls">
+                    <label class="field">
+                        <span class="field-label">Model</span>
+                        <select id="config-model" class="field-control">
+                            <option value="microsoft/MediPhi">MediPhi</option>
+                            <option value="google/medgemma-4b-it">MedGemma 4B</option>
+                            <option value="Intelligent-Internet/II-Medical-8B">II-Medical 8B</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Temperature</span>
+                        <input
+                            type="number"
+                            id="config-temperature"
+                            class="field-control"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value="0.05"
+                        >
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Max tokens</span>
+                        <input
+                            type="number"
+                            id="config-max-tokens"
+                            class="field-control"
+                            min="64"
+                            max="2048"
+                            step="64"
+                            value="512"
+                        >
+                    </label>
+                    <button id="config-apply" class="btn primary-btn">Apply</button>
+                </div>
+                <div id="config-status" class="config-status">Active: MediPhi</div>
+            </div>
+        </section>
+
+        <main class="main-layout single-column">
+            <section class="panel" id="chat-panel">
+                <header class="panel-header">
+                    <div>
+                        <h2>Conversational Agent</h2>
+                        <p class="panel-description">
+                            Ask complex, multi-step questions. The agent can answer, reason,
+                            generate quizzes, and export files.
+                        </p>
+                    </div>
+                    <button
+                        id="chat-clear"
+                        class="btn subtle-btn"
+                        type="button"
+                        title="Clear chat history"
+                    >
+                        Clear
+                    </button>
+                </header>
+
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message ai-message">
+                            Hello! How can I help you today?
+                        </div>
+                    </div>
+
+                    <form class="chat-form" id="chat-form">
+                        <div class="chat-input-wrapper">
+                            <textarea
+                                id="chat-input"
+                                placeholder="Ask the agent anything…"
+                                required
+                            ></textarea>
+                        </div>
+                        <div class="chat-actions">
+                            <span class="chat-hint">
+                                Press <kbd>Enter</kbd> to send, <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line.
+                            </span>
+                            <button id="chat-send" type="submit" class="btn primary-btn">
+                                Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="chat-export-controls" class="export-controls" style="display: none;">
+        <h3>Export Last Response</h3>
+        <div class="export-buttons">
+            <button id="chat-export-pdf" class="btn btn-primary">Export PDF</button>
+            <button id="chat-export-docx" class="btn btn-secondary">Export DOCX</button>
+        </div>
+        <div id="chat-export-status" class="status-message"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

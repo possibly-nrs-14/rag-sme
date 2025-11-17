@@ -49,7 +49,12 @@ def create_search_index(config_path=None, use_elasticsearch=True):
 
 class SearchDocsTool(BaseTool):
     name: str = "search_docs"
-    description: str = "Semantic search over textbook chunks of the human nervous system corpus."
+    description: str = (
+        "Semantic search over textbook chunks of the human nervous system corpus. "
+        "Input can be a string query OR a JSON object with 'query' and optional 'filters'. "
+        "Example: {\"query\": \"cerebellum\", \"filters\": {\"source_basename\": \"Snell\"}} to search only in Snell's textbook. "
+        "Available filter fields: source_basename (book name), granularity_tokens, position."
+    )
     k: int = 8
     candidates: int = 120
     device: Optional[str] = None
@@ -87,12 +92,42 @@ class SearchDocsTool(BaseTool):
         self._pipe = SearchPipeline(self._index, self._encoder, self._reranker)
 
     def _run(self, query):
+        """
+        Run search with optional metadata filters.
+
+        Args:
+            query: Can be either:
+                - String: simple query
+                - Dict: {"query": "...", "filters": {"source_basename": "...", ...}}
+        """
+        # Parse input - can be string or dict with query + filters
+        if isinstance(query, dict):
+            actual_query = query.get("query", "")
+            filters = query.get("filters")
+        elif isinstance(query, str):
+            # Try to parse as JSON first
+            try:
+                parsed = json.loads(query)
+                if isinstance(parsed, dict) and "query" in parsed:
+                    actual_query = parsed["query"]
+                    filters = parsed.get("filters")
+                else:
+                    actual_query = query
+                    filters = None
+            except (json.JSONDecodeError, TypeError):
+                actual_query = query
+                filters = None
+        else:
+            actual_query = str(query)
+            filters = None
+
         hits = self._pipe.search(
-            query,
+            actual_query,
             top_k=self.k,
             candidates=self.candidates,
             use_reranker=True,
-            search_mode=self.search_mode
+            search_mode=self.search_mode,
+            filters=filters
         )
         out = []
         for h in hits:
@@ -440,9 +475,26 @@ class LLMAgent():
         return {"items": items, "sources": used_docs}
 
     def generate_quiz_payload(self, payload, search_tool, llm, quiz_prompt, n_questions):
-        topic = payload["topic"]
+        # Handle both string and dict input
+        if isinstance(payload, str):
+            # Try to parse as JSON
+            try:
+                parsed = json.loads(payload)
+                topic = parsed.get("topic", payload)  # Fallback to string if no topic key
+            except:
+                # If not JSON, treat whole string as topic
+                topic = payload
+        elif isinstance(payload, dict):
+            topic = payload.get("topic", "")
+        else:
+            topic = str(payload)
+
+        if not topic:   
+            return {"error": "No topic provided", "items": [], "sources": []}
+
         result = self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
-        return {"topic:": topic, "items": result["items"], "sources": result["sources"]}
+        payload = {"topic": topic, "items": result["items"], "sources": result["sources"]}
+        return payload
     
     def build_lc_quiz_chain(self, llm, search_tool, n_questions=5):
         quiz_prompt = self.lc_templates()[1]

@@ -243,6 +243,7 @@ class ExportTool(BaseTool):
         exports_dir = "./exports"
         os.makedirs(exports_dir, exist_ok=True)
         timestamp = int(time.time())
+        logger.info(f"Attempting export: type={export_type}, format={file_format}, data_keys={list(data.keys()) if data else None}")
         
         try:
             if export_type == "qa":
@@ -276,7 +277,6 @@ class ExportTool(BaseTool):
                     path = os.path.join(exports_dir, f"quiz_export_{timestamp}.pptx")
                     export_quiz_pptx(topic, items, sources, path)
                     return path
-                    
             return f"Error: Invalid export_type '{export_type}' or file_format '{file_format}'."
         
         except Exception as e:
