@@ -14,9 +14,7 @@ from part_A_collection import collect_and_organize_documents
 from part_B_preprocessing import run_batch
 from part_DEF_agent_llm_capabilities import (
     SearchDocsTool,
-    load_medgemma_llm_lc,
-    build_lc_qa_chain,
-    build_lc_quiz_chain
+    LLMAgent
 )
 from part_G_RAG import load_elasticsearch_config, ElasticsearchIndex
 
@@ -296,10 +294,13 @@ def create_app():
     # Initialize search tool with ES support
     search_mode = os.environ.get("SEARCH_MODE", "hybrid")
     use_es = env_bool("USE_ELASTICSEARCH", True)
-    search_tool = SearchDocsTool(k=8, candidates=120, device=None,
-                                  search_mode=search_mode, use_elasticsearch=use_es)
-    llm = load_medgemma_llm_lc()
-    qa_chain = build_lc_qa_chain(llm, search_tool) if search_tool else None
+    search_tool = SearchDocsTool(k=8, candidates=120, device=None, search_mode=search_mode, use_elasticsearch=use_es)
+    # llm_agent = LLMAgent(model_name='Intelligent-Internet/II-Medical-8B', max_new_tokens=512)
+    llm_agent = LLMAgent(model_name='microsoft/MediPhi')
+    # llm_agent = LLMAgent()
+    # For Intelligent-Internet/II-Medical-8B, due to its inbuilt reasoning, we increased the max_tokens in the output to 512. The default is 256
+    llm = llm_agent.load_llm_lc()
+    qa_chain = llm_agent.build_lc_qa_chain(llm, search_tool) if search_tool else None
 
     @app.post("/lc/qa")
     def lc_qa():
@@ -313,7 +314,7 @@ def create_app():
         data = request.get_json(force=True) or {}
         topic = data.get("topic", "")
         n = int(data.get("n", 5))
-        quiz_chain = build_lc_quiz_chain(llm, search_tool, n_questions=n) if search_tool else None
+        quiz_chain = llm_agent.build_lc_quiz_chain(llm, search_tool, n_questions=n) if search_tool else None
         out = quiz_chain.invoke({"topic": topic}) if quiz_chain else {"error": "LangChain unavailable"}
         return jsonify(out)
 
