@@ -100,6 +100,9 @@ class SearchDocsTool(BaseTool):
                 - String: simple query
                 - Dict: {"query": "...", "filters": {"source_basename": "...", ...}}
         """
+        # If LangChain passed separate query + filters kwargs, merge them
+        if isinstance(query, str) and filters is not None:
+            query = {"query": query, "filters": filters}
         # Parse input - can be string or dict with query + filters
         if isinstance(query, dict):
             actual_query = query.get("query", "")
@@ -426,13 +429,42 @@ class LLMAgent():
             out_lines.append(line)
         return "\n".join(out_lines)
     
+    def _extract_question(self, payload):
+        """
+        Normalize whatever the tool receives into a question string.
+
+        Accepts:
+        - dict with 'question'
+        - JSON string containing {"question": "..."}
+        - bare string ("What is the dura?")
+        - anything else -> str(...)
+        """
+        # If it's already a dict
+        if isinstance(payload, dict):
+            q = payload.get("question")
+            if q:
+                return q
+
+        # If it's a string – maybe JSON, maybe plain text
+        if isinstance(payload, str):
+            try:
+                parsed = json.loads(payload)
+                if isinstance(parsed, dict) and "question" in parsed:
+                    return parsed["question"]
+            except Exception:
+                pass
+            return payload  # treat bare string as the question
+
+        # Fallback
+        return str(payload)
+
     def build_lc_qa_chain(self, llm, search_tool):
         fan = RunnableParallel(
-            question=itemgetter("question"),
-            docs=RunnableLambda(lambda x: search_tool.run(x["question"])),
+            question=RunnableLambda(self._extract_question),
+            docs=RunnableLambda(lambda x: search_tool.run(self._extract_question(x))),
         )
     
-        qa_t, _ = self.lc_templates()
+        qa_t, _ = self.lc_templates()   
 
         compose = RunnableLambda(lambda x: {
             "question": x["question"],
