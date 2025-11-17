@@ -209,6 +209,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const quizCount = document.getElementById("quiz-count");
   const quizRun = document.getElementById("quiz-run");
   const quizPreview = document.getElementById("quiz-preview");
+  const quizSources = document.getElementById("quiz-sources");
   const quizExport = document.getElementById("quiz-export");
   // --- Feedback controls removed ---
   
@@ -270,7 +271,7 @@ window.addEventListener("DOMContentLoaded", () => {
         if (!topic) return;
         quizRun.disabled = true;
         quizPreview.textContent = "Generating quiz...";
-        // --- Feedback visibility line removed ---
+        if (quizSources) quizSources.innerHTML = "";                 
         try {
           const res = await postJSON("/lc/quiz", {topic, n});
           lastQuiz = res;
@@ -285,6 +286,9 @@ window.addEventListener("DOMContentLoaded", () => {
             text += `   Correct: ${it.correct}\n\n`;
           });
           quizPreview.textContent = text || "No items generated.";
+          if (quizSources) {
+            renderSources(quizSources, res.sources || []);
+          }
           quizExport.disabled = items.length === 0;
           // --- Feedback visibility line removed ---
         } catch (err) {
@@ -295,7 +299,7 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       });
   }
-
+  
   if (quizExport) {
       quizExport.addEventListener("click", async () => {
         if (!lastQuiz) return;
