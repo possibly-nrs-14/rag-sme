@@ -418,11 +418,14 @@ class LLMAgent():
         shuffled = list(docs)
         random.shuffle(shuffled)
         items = []
+        used_docs = []
         for d in shuffled:
             if len(items) >= n_questions:
                 break
+
             context_text = (d.get("text") or "")
             parsed = self.generate_single_mcq_from_context(context_text, llm, quiz_prompt)
+
             if parsed:
                 parsed["source"] = {
                     "book": d.get("book"),
@@ -431,7 +434,8 @@ class LLMAgent():
                     "position": d.get("position"),
                 }
                 items.append(parsed)
-        return {"items": items}
+                used_docs.append(d)
+        return {"items": items, "sources": used_docs}
         
     def generate_quiz_payload(self, payload, search_tool, llm, quiz_prompt, n_questions):
         topic = payload["topic"]
