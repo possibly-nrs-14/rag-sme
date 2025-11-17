@@ -91,7 +91,7 @@ class SearchDocsTool(BaseTool):
         # Create search pipeline
         self._pipe = SearchPipeline(self._index, self._encoder, self._reranker)
 
-    def _run(self, query):
+    def _run(self, query=None, filters=None):
         """
         Run search with optional metadata filters.
 
