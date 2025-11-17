@@ -432,11 +432,12 @@ class LLMAgent():
                 }
                 items.append(parsed)
         return {"items": items}
-
+        
     def generate_quiz_payload(self, payload, search_tool, llm, quiz_prompt, n_questions):
         topic = payload["topic"]
-        return self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
-
+        result = self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
+        return {"items": result["items"], "sources": result["sources"]}
+    
     def build_lc_quiz_chain(self, llm, search_tool, n_questions=5):
         quiz_prompt = self.lc_templates()[1]
         bound = partial(
@@ -447,6 +448,7 @@ class LLMAgent():
             n_questions=n_questions,
         )
         return RunnableLambda(bound)
+    
     def build_agent_executor(self, llm, search_tool, max_iterations=5):
 
         # Build the QA and Quiz chains
