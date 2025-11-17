@@ -33,7 +33,7 @@ def create_search_index(config_path=None, use_elasticsearch=True):
                 es_index = ElasticsearchIndex(config=config)
 
                 # Ensure index exists
-                es_index.create_index(dims=768, delete_if_exists=False)
+                es_index.create_index(dims=None, delete_if_exists=False)
                 logger.info("Using Elasticsearch backend for search")
                 return es_index
         except Exception as e:
@@ -205,6 +205,16 @@ class LLMAgent():
             quiz = PromptTemplate.from_template(
                 "Create ONE MCQ (A–D) from the context. One correct option only. Return JSON with question, options (A..D), correct.\n\nContext:\n{context}\n\nJSON:"
             )
+            # quiz = PromptTemplate.from_template(
+            #     "Create ONE MCQ (A–D) from the context. Exactly one correct option.\n"
+            #     "Return ONLY a single JSON object with keys:\n"
+            #     "- question (string)\n"
+            #     "- options (object with keys 'A','B','C','D')\n"
+            #     "- correct (one of 'A','B','C','D')\n"
+            #     "Do NOT include any explanation, markdown, or text outside the JSON.\n\n"
+            #     "Context:\n{context}\n\nJSON:"
+            # )
+
         return qa, quiz
 
     def add_context(self, docs, k=3):
@@ -213,6 +223,7 @@ class LLMAgent():
             t = (d.get("text") or "")
             chunks.append(t)
         return "\n\n---\n\n".join(chunks)
+    
     def dedupe_lines(self, text):
         seen = set()
         out_lines = []
@@ -225,6 +236,7 @@ class LLMAgent():
             seen.add(l)
             out_lines.append(line)
         return "\n".join(out_lines)
+    
     def build_lc_qa_chain(self, llm, search_tool):
         fan = RunnableParallel(
             question=itemgetter("question"),
@@ -254,11 +266,14 @@ class LLMAgent():
         shuffled = list(docs)
         random.shuffle(shuffled)
         items = []
+        used_docs = []
         for d in shuffled:
             if len(items) >= n_questions:
                 break
+
             context_text = (d.get("text") or "")
             parsed = self.generate_single_mcq_from_context(context_text, llm, quiz_prompt)
+
             if parsed:
                 parsed["source"] = {
                     "book": d.get("book"),
@@ -267,12 +282,14 @@ class LLMAgent():
                     "position": d.get("position"),
                 }
                 items.append(parsed)
-        return {"items": items}
+                used_docs.append(d)
+        return {"items": items, "sources": used_docs}
 
     def generate_quiz_payload(self, payload, search_tool, llm, quiz_prompt, n_questions):
         topic = payload["topic"]
-        return self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
-
+        result = self.build_quiz_items_from_topic(topic, search_tool, llm, quiz_prompt, n_questions=n_questions)
+        return {"items": result["items"], "sources": result["sources"]}
+    
     def build_lc_quiz_chain(self, llm, search_tool, n_questions=5):
         quiz_prompt = self.lc_templates()[1]
         bound = partial(

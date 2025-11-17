@@ -48,7 +48,7 @@ def sanitize_for_injection(text, replacement_marker="[SANITIZED_INSTRUCTION]"):
         
         # Evasion attempts
         r"stop\s+being\s+a\s+chatbot",
-        r"act\s+as\s+[a-zA-Z\s]+",
+        # r"act\s+as\s+[a-zA-Z\s]+",
     ]
     
     # Compile a single, case-insensitive regex
@@ -56,6 +56,7 @@ def sanitize_for_injection(text, replacement_marker="[SANITIZED_INSTRUCTION]"):
         r'|'.join(f"({p})" for p in injection_patterns), 
         re.IGNORECASE | re.DOTALL
     )
+
     # i changed the replacer
     def replacer(m):
         gi = None

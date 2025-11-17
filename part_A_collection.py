@@ -5,6 +5,7 @@ import logging
 import sys
 from collections import defaultdict
 import json 
+import time
 
 # Logging Errors
 logging.basicConfig(
@@ -41,6 +42,7 @@ def collect_and_organize_documents(input_dir):
         metadata[abs_path] = {
             "file_name": file_name,
             "file_type": file_ext,
+            "ingested_at": int(time.time()),
         }
 
     for k in organized_corpus:

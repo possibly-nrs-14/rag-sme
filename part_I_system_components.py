@@ -149,10 +149,11 @@ def create_app():
     def export_quiz_route():
         data = request.get_json(force=True) or {}
         items = data.get("items", [])
+        sources = data.get("sources", [])
         os.makedirs("./exports", exist_ok=True)
-        export_quiz_pdf(items, "./exports/quiz.pdf")
-        export_quiz_docx(items, "./exports/quiz.docx")
-        export_quiz_pptx(items, "./exports/quiz.pptx")
+        export_quiz_pdf(items, sources, "./exports/quiz.pdf")
+        export_quiz_docx(items, sources, "./exports/quiz.docx")
+        export_quiz_pptx(items, sources, "./exports/quiz.pptx")
         return jsonify({"ok": True, "paths": ["./exports/quiz.pdf", "./exports/quiz.docx", "./exports/quiz.pptx"]})
 
     @app.post("/admin/ingest")
