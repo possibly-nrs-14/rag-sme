@@ -84,8 +84,12 @@ class AgentExecutor:
                    - First: generate_quiz_on_neuroanatomy_topic to create the quiz
                    - Second: export_document to export it as PDF/DOCX/PPTX
                 2. When user asks to "answer question AND export", use answer_question_about_neuroanatomy then export_document
-                3. The export_document tool needs the FULL data from the quiz or QA observation
-
+                3. For export_document, the system will automatically use the quiz/QA from the PREVIOUS step.
+                   Your Action Input MUST be a SIMPLE JSON object with ONLY "export_type" and "file_format".
+                   - Example 1 (for exporting a quiz to PDF): {{"export_type": "quiz", "file_format": "pdf"}}
+                   - Example 2 (for exporting an answer to DOCX): {{"export_type": "qa", "file_format": "docx"}}
+                   - If file_format is not specified by user, default to "pdf".
+                   - DO NOT include a "data" field in your Action Input. The system handles it automatically.
                 To use a tool, please use the following format:
 
                 Thought: Do I need to use a tool? Yes
@@ -121,8 +125,12 @@ class AgentExecutor:
                    - First: generate_quiz_on_neuroanatomy_topic to create the quiz
                    - Second: export_document to export it as PDF/DOCX/PPTX
                 2. When user asks to "answer question AND export", use answer_question_about_neuroanatomy then export_document
-                3. The export_document tool needs the FULL data from the quiz or QA observation
-
+                3. For export_document, the system will automatically use the quiz/QA from the PREVIOUS step.
+                   Your Action Input MUST be a SIMPLE JSON object with ONLY "export_type" and "file_format".
+                   - Example 1 (for exporting a quiz to PDF): {{"export_type": "quiz", "file_format": "pdf"}}
+                   - Example 2 (for exporting an answer to DOCX): {{"export_type": "qa", "file_format": "docx"}}
+                   - If file_format is not specified by user, default to "pdf".
+                   - DO NOT include a "data" field in your Action Input. The system handles it automatically.
                 To use a tool, please use the following format:
 
                 Thought: Do I need to use a tool? Yes
