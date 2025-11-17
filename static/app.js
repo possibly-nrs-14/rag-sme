@@ -35,6 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const quizCount = document.getElementById("quiz-count");
   const quizRun = document.getElementById("quiz-run");
   const quizPreview = document.getElementById("quiz-preview");
+    const quizSources = document.getElementById("quiz-sources");
   const quizExport = document.getElementById("quiz-export");
 
   qaRun.addEventListener("click", async () => {
@@ -79,6 +80,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!topic) return;
     quizRun.disabled = true;
     quizPreview.textContent = "Generating quiz...";
+    if (quizSources) quizSources.innerHTML = "";                  // clear old sources
     try {
       const res = await postJSON("/lc/quiz", {topic, n});
       lastQuiz = res;
@@ -93,6 +95,12 @@ window.addEventListener("DOMContentLoaded", () => {
         text += `   Correct: ${it.correct}\n\n`;
       });
       quizPreview.textContent = text || "No items generated.";
+
+      // NEW: render quiz sources
+      if (quizSources) {
+        renderSources(quizSources, res.sources || []);
+      }
+      
       quizExport.disabled = items.length > 0;
       quizExport.disabled = items.length === 0;
     } catch (err) {
