@@ -190,3 +190,9 @@ docker run -d --name elasticsearch -p 9200:9200 `
 -e "discovery.type=single-node" `
 -e "xpack.security.enabled=false" `
 elasticsearch:8.11.0
+
+Models
+https://huggingface.co/google/medgemma-4b-it
+https://huggingface.co/microsoft/MediPhi
+https://huggingface.co/Intelligent-Internet/II-Medical-8B
+https://huggingface.co/iarfmoose/t5-base-question-generator
