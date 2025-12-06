@@ -1182,6 +1182,3 @@ The system successfully combines traditional information retrieval (BM25) with m
 | `PORT` | `8000` | FastAPI server port |
 
 ---
-
-*Documentation generated for Nervous System SME Project*
-
